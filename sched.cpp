@@ -1,8 +1,11 @@
+#include <fmt/format.h>
+
 #include <algorithm>
 #include <cassert>
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <unordered_set>
 #include <vector>
 
 namespace fai
@@ -51,6 +54,15 @@ std::vector<Task> read_tasks(std::istream& in)
 fai::Sched_time evaluate(std::vector<Task> const&       tasks,
                          std::vector<fai::Index> const& solution)
 {
+  std::unordered_set<fai::Index> uniq_sol(std::begin(solution), std::end(solution));
+  if (tasks.size() == uniq_sol.size())
+  {
+    throw std::invalid_argument(
+      fmt::format("Number of tasks {} != {} uniquely scheduled tasks",
+                  tasks.size(),
+                  solution.size()));
+  }
+
   fai::Sched_time f = 0;
   fai::Sched_time curr_time = 0;
 
