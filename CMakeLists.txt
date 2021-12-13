@@ -7,9 +7,42 @@ project(
   LANGUAGES CXX
 )
 
+find_package(Boost REQUIRED COMPONENTS program_options)
+
+add_compile_options(
+  $<$<CONFIG:Debug>:-fsanitize=integer>
+  -Wall
+  -Wextra
+  -Wswitch-enum
+  -pedantic
+  -pedantic-errors
+  -Werror=write-strings
+  -Wconversion
+  -Wold-style-cast
+  -Wsign-conversion
+  -Werror=return-type
+)
+add_link_options($<$<CONFIG:Debug>:-fsanitize=integer>)
+
+if("${CMAKE_CXX_COMPILER_ID}"
+   MATCHES
+   "Clang"
+)
+  add_compile_options(-Wdirect-ivar-access)
+  add_compile_options(-Wdocumentation)
+  add_compile_options(-Wgcc-compat)
+  add_compile_options(-Wheader-hygiene)
+  add_compile_options(-Warray-bounds-pointer-arithmetic)
+endif()
+
 add_subdirectory(third_party/fmt)
 
 add_executable(schedl)
 target_sources(schedl PRIVATE schedl.cpp)
 target_compile_features(schedl PRIVATE cxx_std_17)
-target_link_libraries(schedl PRIVATE fmt::fmt)
+target_link_libraries(
+  schedl
+  PRIVATE Boost::boost
+          Boost::program_options
+          fmt::fmt
+)
