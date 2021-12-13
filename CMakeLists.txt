@@ -7,22 +7,44 @@ project(
   LANGUAGES CXX
 )
 
+execute_process(
+  COMMAND git submodule init
+  COMMAND git submodule update
+  COMMAND echo submodule fetched
+  WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+)
+
 find_package(Boost REQUIRED COMPONENTS program_options)
 
-add_compile_options(
-  $<$<CONFIG:Debug>:-fsanitize=integer>
-  -Wall
-  -Wextra
-  -Wswitch-enum
-  -pedantic
-  -pedantic-errors
-  -Werror=write-strings
-  -Wconversion
-  -Wold-style-cast
-  -Wsign-conversion
-  -Werror=return-type
+if("${CMAKE_CXX_COMPILER_ID}"
+   MATCHES
+   "GNU"
+   OR "${CMAKE_CXX_COMPILER_ID}"
+      MATCHES
+      "Clang"
 )
-add_link_options($<$<CONFIG:Debug>:-fsanitize=integer>)
+  add_compile_options(
+    $<$<CONFIG:Debug>:-fsanitize=integer>
+    -Wall
+    -Wextra
+    -Wswitch-enum
+    -pedantic
+    -pedantic-errors
+    -Werror=write-strings
+    -Wconversion
+    -Wold-style-cast
+    -Wsign-conversion
+    -Werror=return-type
+  )
+  add_link_options($<$<CONFIG:Debug>:-fsanitize=integer>)
+endif(
+  "${CMAKE_CXX_COMPILER_ID}"
+  MATCHES
+  "GNU"
+  OR "${CMAKE_CXX_COMPILER_ID}"
+     MATCHES
+     "Clang"
+)
 
 if("${CMAKE_CXX_COMPILER_ID}"
    MATCHES
