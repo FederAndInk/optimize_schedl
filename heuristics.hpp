@@ -10,7 +10,7 @@
 
 /**
  * return a function to find the best of a vector of
- * Taskfrom a function witch compare two Tasks.
+ * Task from a function witch compare two Tasks.
  */
 template <typename Eval_fn>
 auto select(Eval_fn&& eval_fn)

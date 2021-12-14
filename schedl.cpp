@@ -94,10 +94,16 @@ int main(int argc, char** argv)
   sol = ct_heuristic(tasks, select(eval_static_sdelay_div_weight));
   fmt::print("Total cost eval_static_sdelay_div_weight heuristic: {:L}\n",
              evaluate(tasks, sol));
-
-  sol = vnd(tasks, sol);
+  auto tmp_sol = sol;
+  sol = vnd(tasks, tmp_sol);
   fmt::print("Total cost vnd from eval_static_sdelay_div_weight: {:L}\n",
              evaluate(tasks, sol));
+
+  sol = hill_climbing(tasks, tmp_sol, select2best);
+  fmt::print("Total cost hill_climbing select2best: {:L}\n", evaluate(tasks, sol));
+
+  sol = hill_climbing(tasks, tmp_sol, select2worst);
+  fmt::print("Total cost hill_climbing select2worst: {:L}\n", evaluate(tasks, sol));
 
   sol = ct_heuristic(tasks, select(eval_static_sdelay_mul_weight));
   fmt::print("Total cost eval_static_sdelay_mul_weight heuristic: {:L}\n",
