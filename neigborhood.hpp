@@ -1,16 +1,16 @@
 #pragma once
 
-#include "Task.hpp"
+#include "utils.hpp"
 
-#include <vector>
+#include <utility>
 
 class Consecutive_single_swap_neighborhood
 {
 private:
-  std::vector<fai::Index> base_solution;
+  fai::vector<fai::Index> base_solution;
 
 public:
-  Consecutive_single_swap_neighborhood(std::vector<fai::Index> base_solution)
+  Consecutive_single_swap_neighborhood(fai::vector<fai::Index> base_solution)
     : base_solution(std::move(base_solution))
   {
   }
@@ -18,13 +18,13 @@ public:
   class Iterator
   {
   private:
-    std::vector<fai::Index> solution;
+    fai::vector<fai::Index> solution;
     fai::Index              modif_pos{0};
 
   public:
     Iterator(fai::Index pos) : modif_pos(pos) {}
 
-    Iterator(std::vector<fai::Index> const& base_sol) : solution(base_sol)
+    Iterator(fai::vector<fai::Index> const& base_sol) : solution(base_sol)
     {
       std::swap(solution[modif_pos], solution[modif_pos + 1]);
     }
@@ -40,7 +40,7 @@ public:
       return *this;
     }
 
-    std::vector<fai::Index> const& operator*()
+    fai::vector<fai::Index> const& operator*()
     {
       return solution;
     }

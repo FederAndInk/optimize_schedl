@@ -16,8 +16,6 @@ execute_process(
 
 find_package(Boost REQUIRED COMPONENTS program_options)
 
-find_program(iwyu_path NAMES include-what-you-use iwyu REQUIRED)
-
 if("${CMAKE_CXX_COMPILER_ID}"
    MATCHES
    "GNU"
@@ -32,8 +30,8 @@ if("${CMAKE_CXX_COMPILER_ID}"
     -pedantic
     -pedantic-errors
     -Werror=write-strings
-    -Wconversion
     -Wold-style-cast
+    -Wconversion
     -Wsign-conversion
     -Werror=return-type
   )
@@ -51,7 +49,7 @@ if("${CMAKE_CXX_COMPILER_ID}"
    "Clang"
 )
   add_compile_options(-Wdirect-ivar-access)
-  add_compile_options(-Wdocumentation)
+  # add_compile_options(-Wdocumentation)
   add_compile_options(-Wgcc-compat)
   add_compile_options(-Wheader-hygiene)
   add_compile_options(-Warray-bounds-pointer-arithmetic)
@@ -60,7 +58,14 @@ endif()
 add_subdirectory(third_party/fmt)
 
 add_executable(schedl)
-target_sources(schedl PRIVATE schedl.cpp heuristics.cpp local_search.cpp neigborhood.cpp Task.cpp)
+target_sources(
+  schedl
+  PRIVATE schedl.cpp
+          heuristics.cpp
+          local_search.cpp
+          neigborhood.cpp
+          Task.cpp
+)
 target_compile_features(schedl PRIVATE cxx_std_17)
 target_link_libraries(
   schedl
@@ -68,4 +73,3 @@ target_link_libraries(
           Boost::program_options
           fmt::fmt
 )
-set_property(TARGET schedl PROPERTY CXX_INCLUDE_WHAT_YOU_USE ${iwyu_path})

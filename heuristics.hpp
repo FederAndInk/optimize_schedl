@@ -5,7 +5,8 @@
 
 #include <boost/range/adaptors.hpp>
 
-#include <vector>
+#include <string_view>
+#include <utility>
 
 /**
  * return a function to find the best of a vector of
@@ -15,7 +16,7 @@ template <typename Eval_fn>
 auto select(Eval_fn&& eval_fn)
 {
   return
-    [eval_fn = std::forward<Eval_fn>(eval_fn)](std::vector<Task> const& tasks,
+    [eval_fn = std::forward<Eval_fn>(eval_fn)](fai::vector<Task> const& tasks,
                                                fai::Sched_time curr_time) -> fai::Index
   {
     fai::Index i_max = 0;
@@ -24,7 +25,7 @@ auto select(Eval_fn&& eval_fn)
     {
       if (max_cost < eval_fn(task, curr_time))
       {
-        i_max = ind;
+        i_max = static_cast<fai::Index>(ind);
       }
     }
     return i_max;
@@ -32,11 +33,10 @@ auto select(Eval_fn&& eval_fn)
 }
 
 template <typename Select_fn>
-std::vector<fai::Index> ct_heuristic(std::vector<Task> tasks, Select_fn&& f_select)
+fai::vector<fai::Index> ct_heuristic(fai::vector<Task> tasks, Select_fn&& f_select)
 {
-  fai::Sched_time         f = 0;
   fai::Sched_time         curr_time = 0;
-  std::vector<fai::Index> sol;
+  fai::vector<fai::Index> sol;
 
   while (!tasks.empty())
   {
@@ -120,11 +120,10 @@ struct Function_reflect
   Heuristic_fn     fn;
 };
 
-#define reflect_fn(fn) #fn, fn
-
-inline std::vector<Function_reflect> get_heuristics()
+inline fai::vector<Function_reflect> const& get_heuristics()
 {
-  static std::vector<Function_reflect> heuristics{
+#define reflect_fn(fn) #fn, fn
+  static fai::vector<Function_reflect> heuristics{
     {reflect_fn(eval_sdelay_divmul_weight)},
     {reflect_fn(eval_sdelay_div_weight)},
     {reflect_fn(eval_static_sdelay_div_weight)},
@@ -133,7 +132,6 @@ inline std::vector<Function_reflect> get_heuristics()
     {reflect_fn(eval_static_expiry)},
     {reflect_fn(eval_static_expiry_div_weight_mul_time)} //
   };
+#undef reflect_fn
   return heuristics;
 }
-
-#undef reflect_fn
