@@ -3,7 +3,7 @@
 #include "local_search.hpp"
 #include "utils.hpp"
 
-#include "fmt/core.h"
+#include <fmt/core.h>
 
 #include <algorithm>
 #include <fstream>
@@ -58,17 +58,26 @@ int main(int argc, char** argv)
     return 1;
   }
   fai::vector<Task>       tasks = read_tasks(tasks_file);
+  std::string_view        best_algo;
   fai::vector<fai::Index> sol;
   if (argc == 3)
   {
     std::ifstream sol_file(argv[2]);
+    if (!sol_file)
+    {
+      fmt::print("Error opening file {}", argv[2]);
+      return 1;
+    }
     sol = read_solution(sol_file, tasks.size());
+    best_algo = "user provided";
   }
   else
   {
     sol = generate_random_solution(tasks.size());
+    best_algo = "random";
+    std::cout << "Random ";
   }
-  std::cout << "Random Scheduling: " << sol << "\n";
+  std::cout << "Scheduling: " << sol << "\n";
 
   try
   {
@@ -79,43 +88,32 @@ int main(int argc, char** argv)
     std::cout << "Locale en_US.UTF-8 not on your system, falling back to C\n";
     std::locale::global(std::locale{"C"});
   }
-  fmt::print("Total cost: {:L}\n", evaluate(tasks, sol));
+  fai::Cost sol_cost = evaluate(tasks, sol);
+  fmt::print("Total cost: {:L}\n", sol_cost);
 
+  fai::vector<fai::Index> best_sol = sol;
+  fai::Cost               best_sol_cost = sol_cost;
   for (auto&& heuristic : get_heuristics())
   {
-
     sol = ct_heuristic(tasks, select(heuristic.fn));
-    fmt::print("Total cost {} heuristic: {:L}\n", heuristic.name, evaluate(tasks, sol));
+    sol_cost = evaluate(tasks, sol);
+    fmt::print("Total cost {} heuristic: {:L}\n", heuristic.name, sol_cost);
+
+    if (best_sol_cost > sol_cost)
+    {
+      best_sol = sol;
+      best_algo = heuristic.name;
+      best_sol_cost = sol_cost;
+    }
   }
+  fmt::print("\nBest algo: {} with cost: {:L}\n", best_algo, best_sol_cost);
 
-  sol = ct_heuristic(tasks, select(eval_sdelay_div_weight));
-  fmt::print("Total cost eval_sdelay_div_weight heuristic: {:L}\n", evaluate(tasks, sol));
+  auto best_vnd_sol = vnd(tasks, best_sol);
+  fmt::print("Total cost vnd from {}: {:L}\n", best_algo, evaluate(tasks, best_vnd_sol));
 
-  sol = ct_heuristic(tasks, select(eval_static_sdelay_div_weight));
-  fmt::print("Total cost eval_static_sdelay_div_weight heuristic: {:L}\n",
-             evaluate(tasks, sol));
-  auto tmp_sol = sol;
-  sol = vnd(tasks, tmp_sol);
-  fmt::print("Total cost vnd from eval_static_sdelay_div_weight: {:L}\n",
-             evaluate(tasks, sol));
-
-  sol = hill_climbing(tasks, tmp_sol, select2best);
+  sol = hill_climbing(tasks, best_sol, select2best);
   fmt::print("Total cost hill_climbing select2best: {:L}\n", evaluate(tasks, sol));
 
-  sol = hill_climbing(tasks, tmp_sol, select2worst);
+  sol = hill_climbing(tasks, best_sol, select2worst);
   fmt::print("Total cost hill_climbing select2worst: {:L}\n", evaluate(tasks, sol));
-
-  sol = ct_heuristic(tasks, select(eval_static_sdelay_mul_weight));
-  fmt::print("Total cost eval_static_sdelay_mul_weight heuristic: {:L}\n",
-             evaluate(tasks, sol));
-
-  sol = ct_heuristic(tasks, select(eval_static_sdelay));
-  fmt::print("Total cost eval_static_sdelay heuristic: {:L}\n", evaluate(tasks, sol));
-
-  sol = ct_heuristic(tasks, select(eval_static_expiry));
-  fmt::print("Total cost eval_static_expiry heuristic: {:L}\n", evaluate(tasks, sol));
-
-  sol = ct_heuristic(tasks, select(eval_static_expiry_div_weight_mul_time));
-  fmt::print("Total cost eval_static_expiry_div_weight_mul_time heuristic: {:L}\n",
-             evaluate(tasks, sol));
 }

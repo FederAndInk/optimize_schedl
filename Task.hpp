@@ -1,7 +1,8 @@
 #pragma once
 
-#include "fmt/core.h"
 #include "utils.hpp"
+
+#include <fmt/core.h>
 
 #include <algorithm>
 #include <cstdint>

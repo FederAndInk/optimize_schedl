@@ -4,6 +4,8 @@
 #include "neigborhood.hpp"
 #include "utils.hpp"
 
+#include <fmt/core.h>
+
 /*
  * 1|2|3|4|5|6
  *      X
@@ -22,7 +24,7 @@ inline fai::vector<fai::Index> vnd(fai::vector<Task> const& tasks,
     for (auto const& neigh_sol : n1)
     {
       if (fai::Cost curr_cost = evaluate(tasks, neigh_sol); //
-          best_neigh_cost > curr_cost)
+          curr_cost < best_neigh_cost)
       {
         best_neigh_cost = curr_cost;
         best_neigh = neigh_sol;
