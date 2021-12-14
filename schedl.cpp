@@ -188,6 +188,19 @@ long double eval_static_sdelay(Task const&                      task,
   return task.get_sdelay(0);
 }
 
+long double eval_static_expiry(Task const&                      task,
+                               [[maybe_unused]] fai::Sched_time curr_time)
+{
+  return -task.expiry_time;
+}
+
+long double
+eval_static_expiry_div_weight_mul_time(Task const&                      task,
+                                       [[maybe_unused]] fai::Sched_time curr_time)
+{
+  return -task.expiry_time * task.exec_time / static_cast<long double>(task.weight);
+}
+
 int main(int argc, char** argv)
 {
   if (argc < 2)
@@ -238,4 +251,11 @@ int main(int argc, char** argv)
 
   sol = ct_heuristic(tasks, select(eval_static_sdelay));
   fmt::print("Total cost eval_static_sdelay heuristic: {:L}\n", evaluate(tasks, sol));
+
+  sol = ct_heuristic(tasks, select(eval_static_expiry));
+  fmt::print("Total cost eval_static_expiry heuristic: {:L}\n", evaluate(tasks, sol));
+
+  sol = ct_heuristic(tasks, select(eval_static_expiry_div_weight_mul_time));
+  fmt::print("Total cost eval_static_expiry_div_weight_mul_time heuristic: {:L}\n",
+             evaluate(tasks, sol));
 }
