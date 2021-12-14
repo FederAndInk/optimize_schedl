@@ -1,9 +1,12 @@
+#pragma once
+
 #include <boost/range/adaptor/indexed.hpp>
 #include <boost/version.hpp>
 
 #include <iostream>
 #include <vector>
 
+// support structured bindings for indexed:  `for (auto [i, elem] : rng | indexed()) {}`
 #if BOOST_VERSION < 107400
 namespace std
 {
