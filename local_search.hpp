@@ -6,6 +6,8 @@
 
 #include <fmt/core.h>
 
+#include <chrono>
+
 /*
  * 1|2|3|4|5|6
  *      X
@@ -31,6 +33,7 @@ inline fai::vector<fai::Index> vnd(fai::vector<Task> const& tasks,
       }
     }
 
+    assert(best_neigh_cost == evaluate(tasks, best_neigh));
     if (base_cost <= best_neigh_cost)
     {
       // change neighborhood
@@ -44,17 +47,34 @@ inline fai::vector<fai::Index> vnd(fai::vector<Task> const& tasks,
   }
 }
 
+struct Select2_ret
+{
+  static constexpr bool BREAK = true;
+  static constexpr bool CONTINUE = false;
+
+  fai::vector<fai::Index> const& selected;
+  bool                           brk{false};
+};
+
 template <typename Select2_fn>
 fai::vector<fai::Index> hill_climbing(fai::vector<Task> const& tasks,
                                       fai::vector<fai::Index>  base_solution,
                                       Select2_fn&&             select)
 {
+  long nb_loop = 0;
+  auto start_time = std::chrono::steady_clock::now();
   while (true)
   {
-    Consecutive_single_swap_neighborhood n1(base_solution);
+    fai::Cost base_cost = evaluate(tasks, base_solution);
+    Reverse_consecutive_single_swap_neighborhood n1(std::move(base_solution));
 
-    fai::Cost               base_cost = evaluate(tasks, base_solution);
+    std::chrono::duration<double> time_since_start =
+      std::chrono::steady_clock::now() - start_time;
+    fmt::print("hc: Solution is at {:L} {:.2f} loop/s",
+               base_cost,
+               nb_loop / time_since_start.count());
     fai::vector<fai::Index> selected_neigh;
+    long                    nb_neigh = 0;
     for (auto const& neigh_sol : n1)
     {
       if (fai::Cost curr_cost = evaluate(tasks, neigh_sol); //
@@ -66,33 +86,56 @@ fai::vector<fai::Index> hill_climbing(fai::vector<Task> const& tasks,
         }
         else
         {
-          selected_neigh = select(tasks, selected_neigh, neigh_sol);
+          Select2_ret select_ret = select(tasks, selected_neigh, neigh_sol);
+          selected_neigh = select_ret.selected;
+          if (select_ret.brk)
+          {
+            break;
+          }
         }
       }
+      ++nb_neigh;
     }
+    fmt::print(" -> treated {} neighbors\n", nb_neigh);
 
     if (selected_neigh.empty())
     {
       // no more better neighbors
-      return base_solution;
+      return n1.get_base_solution();
     }
     else
     {
-      base_solution = selected_neigh;
+      base_solution = std::move(selected_neigh);
     }
+    ++nb_loop;
+    // if (nb_loop >= 500)
+    // {
+    //   std::chrono::duration<double> time_since_start =
+    //     std::chrono::steady_clock::now() - start_time;
+    //   fmt::print("reset after: {:.2f}s\n", time_since_start.count());
+    //   nb_loop = 0;
+    //   start_time = std::chrono::steady_clock::now();
+    // }
   }
 }
 
-inline fai::vector<fai::Index> const& select2best(fai::vector<Task>              tasks,
-                                                  fai::vector<fai::Index> const& lhs,
-                                                  fai::vector<fai::Index> const& rhs)
+inline Select2_ret select2best(fai::vector<Task> const&       tasks,
+                               fai::vector<fai::Index> const& lhs,
+                               fai::vector<fai::Index> const& rhs)
 {
-  return (evaluate(tasks, lhs) < evaluate(tasks, rhs)) ? lhs : rhs;
+  return {(evaluate(tasks, lhs) <= evaluate(tasks, rhs)) ? lhs : rhs};
 }
 
-inline fai::vector<fai::Index> const& select2worst(fai::vector<Task>              tasks,
-                                                   fai::vector<fai::Index> const& lhs,
-                                                   fai::vector<fai::Index> const& rhs)
+inline Select2_ret select2worst(fai::vector<Task> const&       tasks,
+                                fai::vector<fai::Index> const& lhs,
+                                fai::vector<fai::Index> const& rhs)
 {
-  return (evaluate(tasks, lhs) < evaluate(tasks, rhs)) ? rhs : lhs;
+  return {(evaluate(tasks, lhs) < evaluate(tasks, rhs)) ? rhs : lhs};
+}
+
+inline Select2_ret select2first(fai::vector<Task> const&       tasks,
+                                fai::vector<fai::Index> const& lhs,
+                                fai::vector<fai::Index> const& rhs)
+{
+  return {lhs, Select2_ret::BREAK};
 }

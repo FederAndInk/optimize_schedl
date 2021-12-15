@@ -106,16 +106,3 @@ public:
 } // namespace fai
 
 namespace adp = boost::adaptors;
-
-template <typename T>
-std::ostream& operator<<(std::ostream& out, std::vector<T> const& v)
-{
-  std::cout << "{";
-  if (!v.empty())
-  {
-    std::copy(std::begin(v), std::end(v) - 1, std::ostream_iterator<T>(std::cout, ", "));
-    std::cout << v.back();
-  }
-  std::cout << "}";
-  return out;
-}

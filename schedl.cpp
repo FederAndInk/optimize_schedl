@@ -4,6 +4,7 @@
 #include "utils.hpp"
 
 #include <fmt/core.h>
+#include <fmt/ranges.h>
 
 #include <algorithm>
 #include <fstream>
@@ -48,7 +49,7 @@ int main(int argc, char** argv)
 {
   if (argc < 2)
   {
-    std::cout << "usage: " << argv[0] << " tasks_file [scheduling_file]\n";
+    fmt::print("usage: {} tasks_file [scheduling_file]\n", argv[0]);
     return 1;
   }
   std::ifstream tasks_file(argv[1]);
@@ -75,9 +76,9 @@ int main(int argc, char** argv)
   {
     sol = generate_random_solution(tasks.size());
     best_algo = "random";
-    std::cout << "Random ";
+    fmt::print("Random ");
   }
-  std::cout << "Scheduling: " << sol << "\n";
+  fmt::print("Scheduling: {}\n", sol);
 
   try
   {
@@ -85,7 +86,7 @@ int main(int argc, char** argv)
   }
   catch (std::runtime_error const& e)
   {
-    std::cout << "Locale en_US.UTF-8 not on your system, falling back to C\n";
+    fmt::print("Locale en_US.UTF-8 not on your system, falling back to C\n");
     std::locale::global(std::locale{"C"});
   }
   fai::Cost sol_cost = evaluate(tasks, sol);
@@ -108,12 +109,18 @@ int main(int argc, char** argv)
   }
   fmt::print("\nBest algo: {} with cost: {:L}\n", best_algo, best_sol_cost);
 
-  auto best_vnd_sol = vnd(tasks, best_sol);
-  fmt::print("Total cost vnd from {}: {:L}\n", best_algo, evaluate(tasks, best_vnd_sol));
+  // auto best_vnd_sol = vnd(tasks, best_sol);
+  // fmt::print("Total cost vnd from {}: {:L}\n", best_algo, evaluate(tasks,
+  // best_vnd_sol)); fmt::print("VND Scheduling: {}\n", best_vnd_sol);
 
-  sol = hill_climbing(tasks, best_sol, select2best);
+  sol = hill_climbing(tasks, best_sol, select2first);
   fmt::print("Total cost hill_climbing select2best: {:L}\n", evaluate(tasks, sol));
 
-  sol = hill_climbing(tasks, best_sol, select2worst);
-  fmt::print("Total cost hill_climbing select2worst: {:L}\n", evaluate(tasks, sol));
+  std::ofstream schedl_out_file("gen_sol.txt");
+  std::copy(std::begin(sol),
+            std::end(sol),
+            std::ostream_iterator<fai::Index>(schedl_out_file, "\n"));
+
+  // sol = hill_climbing(tasks, best_sol, select2worst);
+  // fmt::print("Total cost hill_climbing select2worst: {:L}\n", evaluate(tasks, sol));
 }
