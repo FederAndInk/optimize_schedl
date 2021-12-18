@@ -65,6 +65,7 @@ target_sources(
           local_search.cpp
           neighborhood.cpp
           Task.cpp
+          iterated_local_search.cpp
 )
 target_compile_features(schedl PRIVATE cxx_std_17)
 target_link_libraries(
