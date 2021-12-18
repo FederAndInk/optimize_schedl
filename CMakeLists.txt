@@ -74,3 +74,5 @@ target_link_libraries(
           Boost::program_options
           fmt::fmt
 )
+
+add_subdirectory(tests)
