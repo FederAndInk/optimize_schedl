@@ -8,45 +8,6 @@
 
 #include <chrono>
 
-/*
- * 1|2|3|4|5|6
- *      X
- * 1|2|4|3|5|6
- */
-inline fai::vector<fai::Index> vnd(fai::vector<Task> const& tasks,
-                                   fai::vector<fai::Index>  base_solution)
-{
-  while (true)
-  {
-    Consecutive_single_swap_neighborhood n1(base_solution);
-
-    fai::Cost               base_cost = evaluate(tasks, base_solution);
-    fai::Cost               best_neigh_cost = base_cost;
-    fai::vector<fai::Index> best_neigh;
-    for (auto const& neigh_sol : n1)
-    {
-      if (fai::Cost curr_cost = evaluate(tasks, neigh_sol); //
-          curr_cost < best_neigh_cost)
-      {
-        best_neigh_cost = curr_cost;
-        best_neigh = neigh_sol;
-      }
-    }
-
-    assert(best_neigh_cost == evaluate(tasks, best_neigh));
-    if (base_cost <= best_neigh_cost)
-    {
-      // change neighborhood
-      // if no more neighborhood; end
-      return base_solution;
-    }
-    else
-    {
-      base_solution = best_neigh;
-    }
-  }
-}
-
 struct Select2_ret
 {
   static constexpr bool BREAK = true;
@@ -55,6 +16,65 @@ struct Select2_ret
   fai::vector<fai::Index> const& selected;
   bool                           brk{false};
 };
+
+template <typename Neigh_op, typename Select2_fn>
+fai::vector<fai::Index> next_neighbor(fai::vector<Task> const& tasks,
+                                      Neigh_op&                neigh_op,
+                                      Select2_fn&&             select)
+{
+  fai::Cost base_cost = evaluate(tasks, neigh_op.get_base_solution());
+
+  fai::vector<fai::Index> selected_neigh;
+  long                    nb_neigh = 0;
+  for (auto const& neigh_sol : neigh_op)
+  {
+    if (fai::Cost curr_cost = evaluate(tasks, neigh_sol); //
+        curr_cost < base_cost)
+    {
+      if (selected_neigh.empty())
+      {
+        selected_neigh = neigh_sol;
+      }
+      else
+      {
+        Select2_ret select_ret = select(tasks, selected_neigh, neigh_sol);
+        selected_neigh = select_ret.selected;
+        if (select_ret.brk)
+        {
+          break;
+        }
+      }
+    }
+    ++nb_neigh;
+  }
+  fmt::print(" -> treated {} neighbors\n", nb_neigh);
+  return selected_neigh;
+}
+
+template <typename Select2_fn>
+inline fai::vector<fai::Index> vnd(fai::vector<Task> const& tasks,
+                                   fai::vector<fai::Index>  base_solution,
+                                   Select2_fn&&             select)
+{
+  while (true)
+  {
+    Consecutive_single_swap_neighborhood n1(base_solution);
+
+    fai::Cost               base_cost = evaluate(tasks, base_solution);
+    fai::vector<fai::Index> selected_neigh = next_neighbor(tasks, n1, select);
+
+    if (selected_neigh.empty())
+    {
+      // change neighborhood
+      // if no more neighborhood; end
+      return base_solution;
+    }
+    else
+    {
+      base_solution = selected_neigh;
+    }
+  }
+}
 
 template <typename Select2_fn>
 fai::vector<fai::Index> hill_climbing(fai::vector<Task> const& tasks,
@@ -73,30 +93,7 @@ fai::vector<fai::Index> hill_climbing(fai::vector<Task> const& tasks,
     fmt::print("hc: Solution is at {:L} {:.2f} loop/s",
                base_cost,
                nb_loop / time_since_start.count());
-    fai::vector<fai::Index> selected_neigh;
-    long                    nb_neigh = 0;
-    for (auto const& neigh_sol : n1)
-    {
-      if (fai::Cost curr_cost = evaluate(tasks, neigh_sol); //
-          curr_cost < base_cost)
-      {
-        if (selected_neigh.empty())
-        {
-          selected_neigh = neigh_sol;
-        }
-        else
-        {
-          Select2_ret select_ret = select(tasks, selected_neigh, neigh_sol);
-          selected_neigh = select_ret.selected;
-          if (select_ret.brk)
-          {
-            break;
-          }
-        }
-      }
-      ++nb_neigh;
-    }
-    fmt::print(" -> treated {} neighbors\n", nb_neigh);
+    fai::vector<fai::Index> selected_neigh = next_neighbor(tasks, n1, select);
 
     if (selected_neigh.empty())
     {
