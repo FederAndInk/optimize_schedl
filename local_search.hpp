@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Task.hpp"
-#include "neigborhood.hpp"
+#include "neighborhood.hpp"
 #include "utils.hpp"
 
 #include <fmt/core.h>

@@ -63,7 +63,7 @@ target_sources(
   PRIVATE schedl.cpp
           heuristics.cpp
           local_search.cpp
-          neigborhood.cpp
+          neighborhood.cpp
           Task.cpp
 )
 target_compile_features(schedl PRIVATE cxx_std_17)
