@@ -77,7 +77,7 @@ public:
     return base_solution;
   }
 
-  size_t size()
+  fai::Index size() const noexcept
   {
     return (base_solution.size() - 1);
   }
@@ -158,7 +158,7 @@ public:
     return base_solution;
   }
 
-  size_t size()
+  fai::Index size() const noexcept
   {
     return (base_solution.size() - 1);
   }
@@ -266,9 +266,9 @@ public:
     return Iterator(base_solution.size() - 1);
   }
 
-  size_t size()
+  fai::Index size() const noexcept
   {
-    size_t n = base_solution.size();
+    fai::Index n = base_solution.size();
     return n * (n - 1) / 2;
   }
 
