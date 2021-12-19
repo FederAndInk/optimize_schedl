@@ -102,22 +102,29 @@ void random_access_neighbor_test(Scheduling const& base_sol, Rng const& rng_expe
 {
   static std::mt19937 gen(std::random_device{}());
 
+  auto check = [&rng_expected, &base_sol](fai::Index random_neigh_idx, auto nbhtest)
+  {
+    auto rand_pick = nbhtest.begin();
+    rand_pick += random_neigh_idx;
+    fmt::print("random access test for {}\n", get_neighborhood_name<Neighborhood>());
+    assert_equal(
+      *rand_pick == rng_expected[random_neigh_idx],
+      fmt::format("neighbor isn't generated correctly at pos {}", random_neigh_idx));
+    fmt::print("  | received ");
+    print_rng_diffs(base_sol, *rand_pick);
+    fmt::print("\n  | expected ");
+    print_rng_diffs(base_sol, rng_expected[random_neigh_idx]);
+    fmt::print("\n");
+  };
+
   Neighborhood ntest{base_sol};
 
   std::uniform_int_distribution dist(0, ntest.size() - 1);
 
   fai::Index random_neigh_idx = dist(gen);
-  auto       rand_pick = ntest.begin();
-  rand_pick += random_neigh_idx;
-  fmt::print("random access test for {}\n", get_neighborhood_name<Neighborhood>());
-  assert_equal(
-    *rand_pick == rng_expected[random_neigh_idx],
-    fmt::format("neighbor isn't generated correctly at pos {}", random_neigh_idx));
-  fmt::print("  | received ");
-  print_rng_diffs(base_sol, *rand_pick);
-  fmt::print("\n  | expected ");
-  print_rng_diffs(base_sol, rng_expected[random_neigh_idx]);
-  fmt::print("\n");
+
+  check(random_neigh_idx, ntest);
+  check(ntest.size() - 1, ntest);
 }
 
 int main(int argc, char** argv)
@@ -168,18 +175,67 @@ int main(int argc, char** argv)
   test_neighborhood<Backward_neighborhood<Reverse_neighborhood>>(base_sol,
                                                                  rn_neighs |
                                                                    adp::reversed);
+  std::vector<Scheduling> const srn_neighs{
+    {1, 0, 2, 3, 4, 5, 6, 7, 8, 9}, {0, 2, 1, 3, 4, 5, 6, 7, 8, 9},
+    {0, 1, 3, 2, 4, 5, 6, 7, 8, 9}, {0, 1, 2, 4, 3, 5, 6, 7, 8, 9},
+    {0, 1, 2, 3, 5, 4, 6, 7, 8, 9}, {0, 1, 2, 3, 4, 6, 5, 7, 8, 9},
+    {0, 1, 2, 3, 4, 5, 7, 6, 8, 9}, {0, 1, 2, 3, 4, 5, 6, 8, 7, 9},
+    {0, 1, 2, 3, 4, 5, 6, 7, 9, 8}, {2, 1, 0, 3, 4, 5, 6, 7, 8, 9},
+    {0, 3, 2, 1, 4, 5, 6, 7, 8, 9}, {0, 1, 4, 3, 2, 5, 6, 7, 8, 9},
+    {0, 1, 2, 5, 4, 3, 6, 7, 8, 9}, {0, 1, 2, 3, 6, 5, 4, 7, 8, 9},
+    {0, 1, 2, 3, 4, 7, 6, 5, 8, 9}, {0, 1, 2, 3, 4, 5, 8, 7, 6, 9},
+    {0, 1, 2, 3, 4, 5, 6, 9, 8, 7}, {3, 2, 1, 0, 4, 5, 6, 7, 8, 9},
+    {0, 4, 3, 2, 1, 5, 6, 7, 8, 9}, {0, 1, 5, 4, 3, 2, 6, 7, 8, 9},
+    {0, 1, 2, 6, 5, 4, 3, 7, 8, 9}, {0, 1, 2, 3, 7, 6, 5, 4, 8, 9},
+    {0, 1, 2, 3, 4, 8, 7, 6, 5, 9}, {0, 1, 2, 3, 4, 5, 9, 8, 7, 6},
+    {4, 3, 2, 1, 0, 5, 6, 7, 8, 9}, {0, 5, 4, 3, 2, 1, 6, 7, 8, 9},
+    {0, 1, 6, 5, 4, 3, 2, 7, 8, 9}, {0, 1, 2, 7, 6, 5, 4, 3, 8, 9},
+    {0, 1, 2, 3, 8, 7, 6, 5, 4, 9}, {0, 1, 2, 3, 4, 9, 8, 7, 6, 5},
+    {5, 4, 3, 2, 1, 0, 6, 7, 8, 9}, {0, 6, 5, 4, 3, 2, 1, 7, 8, 9},
+    {0, 1, 7, 6, 5, 4, 3, 2, 8, 9}, {0, 1, 2, 8, 7, 6, 5, 4, 3, 9},
+    {0, 1, 2, 3, 9, 8, 7, 6, 5, 4}, {6, 5, 4, 3, 2, 1, 0, 7, 8, 9},
+    {0, 7, 6, 5, 4, 3, 2, 1, 8, 9}, {0, 1, 8, 7, 6, 5, 4, 3, 2, 9},
+    {0, 1, 2, 9, 8, 7, 6, 5, 4, 3}, {7, 6, 5, 4, 3, 2, 1, 0, 8, 9},
+    {0, 8, 7, 6, 5, 4, 3, 2, 1, 9}, {0, 1, 9, 8, 7, 6, 5, 4, 3, 2},
+    {8, 7, 6, 5, 4, 3, 2, 1, 0, 9}, {0, 9, 8, 7, 6, 5, 4, 3, 2, 1},
+    {9, 8, 7, 6, 5, 4, 3, 2, 1, 0}};
+  test_neighborhood<Sliding_reverse_neighborhood<10>>(base_sol, srn_neighs);
+  test_neighborhood<Backward_neighborhood<Sliding_reverse_neighborhood<10>>>(
+    base_sol,
+    srn_neighs | adp::reversed);
+  test_neighborhood<Sliding_reverse_neighborhood<5>>(base_sol, srn_neighs);
+  test_neighborhood<Backward_neighborhood<Sliding_reverse_neighborhood<5>>>(
+    base_sol,
+    srn_neighs |
+      adp::sliced(
+        0,
+        Backward_neighborhood<Sliding_reverse_neighborhood<5>>{base_sol}.size()) |
+      adp::reversed);
+  test_neighborhood<Sliding_reverse_neighborhood<6>>(base_sol, srn_neighs);
+  test_neighborhood<Backward_neighborhood<Sliding_reverse_neighborhood<6>>>(
+    base_sol,
+    srn_neighs |
+      adp::sliced(
+        0,
+        Backward_neighborhood<Sliding_reverse_neighborhood<6>>{base_sol}.size()) |
+      adp::reversed);
 
   random_access_neighbor_test<Reverse_neighborhood>(base_sol, rn_neighs);
   random_access_neighbor_test<Backward_neighborhood<Reverse_neighborhood>>(
     base_sol,
     rn_neighs | adp::reversed);
+
   random_access_neighbor_test<Consecutive_single_swap_neighborhood>(base_sol,
                                                                     cssn_neighs);
-
   random_access_neighbor_test<
     Backward_neighborhood<Consecutive_single_swap_neighborhood>>(base_sol,
                                                                  cssn_neighs |
                                                                    adp::reversed);
+
+  random_access_neighbor_test<Sliding_reverse_neighborhood<10>>(base_sol, srn_neighs);
+  random_access_neighbor_test<Backward_neighborhood<Sliding_reverse_neighborhood<10>>>(
+    base_sol,
+    srn_neighs | adp::reversed);
 
   if (failed_test != 0)
   {

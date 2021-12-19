@@ -108,6 +108,7 @@ int main(int argc, char** argv)
     }
     sol = read_solution(sol_file, tasks.size());
     best_algo = "user provided";
+    fmt::print("User provided ");
   }
   else
   {
@@ -127,7 +128,7 @@ int main(int argc, char** argv)
     std::locale::global(std::locale{"C"});
   }
   fai::Cost sol_cost = evaluate(tasks, sol);
-  fmt::print("Total cost: {:L}\n", sol_cost);
+  fmt::print("{} Total cost: {:L}\n", best_algo, sol_cost);
 
   Scheduling best_sol = sol;
   fai::Cost  best_sol_cost = sol_cost;
@@ -160,26 +161,27 @@ int main(int argc, char** argv)
     best_sol,
     [](fai::vector<Task> const& tasks, Scheduling&& base_solution)
     {
-      return hill_climbing<Consecutive_single_swap_neighborhood>(tasks,
-                                                                 std::move(base_solution),
-                                                                 select2best);
+      return hill_climbing<Sliding_reverse_neighborhood<10>>(tasks,
+                                                             std::move(base_solution),
+                                                             select2best);
     },
     [](Scheduling& solution, std::vector<Scheduling>& history)
     {
-      return random_distant_neighbor<Consecutive_single_swap_neighborhood>(solution,
-                                                                           10,
-                                                                           history);
+      return random_distant_neighbor<Sliding_reverse_neighborhood<10>>(solution,
+                                                                       10,
+                                                                       history);
     },
     accept_best,
-    stop_n_worse<10>);
+    stop_n_worse<20>);
 
   auto base_out_fname = fs::path(argv[1]).stem().string();
   treat_solution(
     tasks,
     std::move(sol_ils),
-    base_out_fname + "_ils_best_brn"s,
-    fmt::format("ILS (HC select2best) accept_best stop_n_worse<10> {}",
-                get_neighborhood_name<Backward_neighborhood<Reverse_neighborhood>>()));
+    base_out_fname + "_ils_best_hc_best_srn"s,
+    fmt::format(
+      "ILS (HC select2best) accept_best stop_n_worse<20> perturb: rand<10>neigh {}",
+      get_neighborhood_name<Sliding_reverse_neighborhood<10>>()));
 
   // auto best_vnd_sol = vnd(tasks, best_sol);
   // fmt::print("Total cost vnd from {}: {:L}\n", best_algo, evaluate(tasks,

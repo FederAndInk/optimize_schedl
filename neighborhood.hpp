@@ -289,7 +289,7 @@ public:
  * @brief reverse subrange
  *
  * beginning at the first element, then growing the range from 2 to n elements
- * then redo it for the second, the third...
+ * then start again from the second elements, the third...
  *
  * 1|2|3|4|5|6
  *    \|/
@@ -381,8 +381,7 @@ private:
         if (!is_rend())
         {
           // reverse all in subrange
-          std::reverse(std::next(std::begin(solution), modif_pos_beg),
-                       std::end(solution));
+          reverse_range();
         }
       }
       else
@@ -462,6 +461,212 @@ public:
   }
 };
 
+/**
+ * @brief sliding reverse subrange
+ *
+ * beginning 2 element, then sliding to do all the subrange of this size,
+ * then growing the range from 2 to n elements
+ *
+ * 1|2|3|4|5|6
+ *    \|/
+ *     X
+ *    /|\
+ * 1|4|3|2|5|6
+ *
+ */
+template <fai::Index max_range_size>
+class Sliding_reverse_neighborhood : public Neighborhood_base
+{
+public:
+  using Neighborhood_base::Neighborhood_base;
+
+  static constexpr fai::Index get_max_range_size() noexcept
+  {
+    return max_range_size;
+  }
+
+private:
+  class Iterator_derived : public Polymorphic_iterator
+  {
+  private:
+    Scheduling solution;
+    fai::Index modif_pos_beg{0};
+    fai::Index modif_pos_end{modif_pos_beg + 2};
+
+  public:
+    Iterator_derived(Scheduling const& base_sol) : solution(base_sol)
+    {
+      std::reverse(std::next(solution.begin(), modif_pos_beg),
+                   std::next(solution.begin(), modif_pos_end));
+    }
+
+    Iterator_derived(Scheduling const& base_sol, Reverse_tag)
+      : solution(base_sol),
+        modif_pos_beg(base_sol.size() - std::min(base_sol.size(), max_range_size)),
+        modif_pos_end(base_sol.size())
+    {
+      std::reverse(std::next(solution.begin(), modif_pos_beg),
+                   std::next(solution.begin(), modif_pos_end));
+    }
+
+    void advance() override
+    {
+      ++modif_pos_beg;
+      ++modif_pos_end;
+      if (modif_pos_end == solution.size() + 1)
+      {
+        --modif_pos_beg;
+        --modif_pos_end;
+        reverse_range();
+
+        set_subrange<1>();
+        if (!is_fend())
+        {
+          reverse_range();
+        }
+      }
+      else if (!is_fend())
+      {
+        // rotate right
+        auto rbegin =
+          std::make_reverse_iterator(std::next(std::begin(solution), modif_pos_end));
+        std::rotate(rbegin,
+                    rbegin + 2,
+                    std::prev(std::rend(solution), modif_pos_beg - 1));
+      }
+    }
+
+    void move_by(int dist) override
+    {
+      if (dist == 0)
+      {
+        return;
+      }
+      // restore
+      reverse_range();
+      if (dist > 0)
+      {
+        for (int i = 0; i < dist; ++i)
+        {
+          ++modif_pos_beg;
+          ++modif_pos_end;
+          if (modif_pos_end == solution.size() + 1)
+          {
+            set_subrange<1>();
+          }
+        }
+      }
+      else
+      {
+        for (int i = 0; i < -dist; ++i)
+        {
+          --modif_pos_end;
+          --modif_pos_beg;
+          if (modif_pos_beg == -1)
+          {
+            set_subrange<-1>();
+          }
+        }
+      }
+      reverse_range();
+    }
+
+    void go_back() override
+    {
+      --modif_pos_beg;
+      --modif_pos_end;
+      if (modif_pos_beg == -1)
+      {
+        // restore
+        ++modif_pos_beg;
+        ++modif_pos_end;
+        reverse_range();
+
+        set_subrange<-1>();
+        if (!is_rend())
+        {
+          // reverse all in subrange
+          reverse_range();
+        }
+      }
+      else
+      {
+        // rotate left
+        auto beg = std::next(std::begin(solution), modif_pos_beg);
+        std::rotate(beg, beg + 2, std::next(std::begin(solution), modif_pos_end + 1));
+      }
+    }
+
+    Scheduling const& get_current_neighbor() const noexcept override
+    {
+      return solution;
+    }
+
+    [[nodiscard]] bool is_fend() const noexcept override
+    {
+      return subrange_size() > std::min(solution.size(), max_range_size);
+    }
+
+    [[nodiscard]] bool is_rend() const noexcept override
+    {
+      return subrange_size() < 2;
+    }
+
+  private:
+    fai::Index subrange_size() const noexcept
+    {
+      return modif_pos_end - modif_pos_beg;
+    }
+
+    template <fai::Index rel_sz>
+    void set_subrange() noexcept
+    {
+      auto subrng_sz = subrange_size();
+      if (rel_sz > 0)
+      {
+        modif_pos_beg = 0;
+        modif_pos_end = modif_pos_beg + subrng_sz + rel_sz;
+      }
+      else
+      {
+        modif_pos_end = solution.size();
+        modif_pos_beg = solution.size() - subrng_sz - rel_sz;
+      }
+    }
+
+    void reverse_range()
+    {
+      std::reverse(std::next(std::begin(solution), modif_pos_beg),
+                   std::next(std::begin(solution), modif_pos_end));
+    }
+  };
+
+public:
+  Iterator begin() noexcept override
+  {
+    return Iterator(std::make_unique<Iterator_derived>(get_base_solution()));
+  }
+
+  Iterator rbegin() noexcept override
+  {
+    return Iterator(std::make_unique<Polymorphic_reverse_iterator<Iterator_derived>>(
+      get_base_solution(),
+      Iterator_derived::reverse_tag));
+  }
+
+  // Iterator end()
+  // {
+  //   return Iterator(base_solution.size() - 1);
+  // }
+
+  fai::Index size() const noexcept override
+  {
+    fai::Index n = get_base_solution().size();
+    fai::Index k = max_range_size;
+    return (n * (n - 1) - (n - k) * (n - k + 1)) / 2;
+  }
+};
+
 template <typename Neighborhood>
 class Backward_neighborhood : public Neighborhood_abstract
 {
@@ -535,6 +740,40 @@ public:
 template <typename U>
 using base_neighborhood_t = typename base_neighborhood<U>::type;
 
+template <typename U>
+struct Is_sliding_reverse_neighborhood
+{
+private:
+  template <typename T>
+  static constexpr std::false_type test(T);
+
+  template <fai::Index max_sz>
+  static constexpr std::true_type test(Sliding_reverse_neighborhood<max_sz>);
+
+public:
+  static constexpr bool value = decltype(test(std::declval<U>()))::value;
+};
+
+template <typename U>
+constexpr auto is_sliding_reverse_neighborhood_v =
+  Is_sliding_reverse_neighborhood<U>::value;
+
+template <typename U, fai::Index idx = 0>
+struct sliding_reverse_neighborhood_max_range_size
+{
+  static constexpr fai::Index value = idx;
+};
+
+template <fai::Index idx>
+struct sliding_reverse_neighborhood_max_range_size<Sliding_reverse_neighborhood<idx>>
+{
+  static constexpr fai::Index value = idx;
+};
+
+template <typename U>
+constexpr auto sliding_reverse_neighborhood_max_range_size_v =
+  sliding_reverse_neighborhood_max_range_size<U>::value;
+
 template <typename Neighborhood>
 std::string get_neighborhood_name()
 {
@@ -551,6 +790,11 @@ std::string get_neighborhood_name()
   else if (std::is_same_v<Base_neighborhood, Reverse_neighborhood>)
   {
     ret += "Reverse_neighborhood";
+  }
+  else if (is_sliding_reverse_neighborhood_v<Base_neighborhood>)
+  {
+    ret += fmt::format("Sliding_reverse_neighborhood<{}>",
+                       sliding_reverse_neighborhood_max_range_size_v<Base_neighborhood>);
   }
   else
   {

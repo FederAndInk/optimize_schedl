@@ -11,7 +11,7 @@ Scheduling random_neighbor(Scheduling const& base_solution)
 {
   static std::mt19937             gen(std::random_device{}());
   Neighborhood                    neighborhood(base_solution);
-  std::uniform_int_distribution<> distrib(0, neighborhood.size());
+  std::uniform_int_distribution<> distrib(0, neighborhood.size() - 1);
   return neighborhood.at(distrib(gen));
 };
 
@@ -77,6 +77,7 @@ bool stop_n_worse(fai::vector<Task> const& tasks, std::vector<Scheduling> histor
                              std::rend(history),
                              [&tasks](Scheduling const& lhs, Scheduling const& rhs)
                              { return evaluate(tasks, lhs) <= evaluate(tasks, rhs); });
+  fmt::print("stop_{}_worse: dist: {}\n", n, std::distance(std::rbegin(history), it));
   return std::distance(std::rbegin(history), it) >= n;
 }
 
@@ -98,7 +99,7 @@ Scheduling ils(fai::vector<Task> const& tasks,
   {
     Scheduling second_opt_sol = local_search_fn(tasks, disturb_fn(accepted_sol, history));
     accept_fn(tasks, accepted_sol, std::move(second_opt_sol), history);
-  } while (stop_fn(tasks, history));
+  } while (!stop_fn(tasks, history));
   return *std::min_element(std::begin(history),
                            std::end(history),
                            [&tasks](Scheduling const& lhs, Scheduling const& rhs)
