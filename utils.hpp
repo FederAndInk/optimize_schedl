@@ -103,6 +103,56 @@ public:
     std::vector<T>::reserve(static_cast<v_size_type>(n));
   }
 };
+
+template <typename Range>
+class Reverse_range
+{
+private:
+  Range& rng;
+
+public:
+  explicit Reverse_range(Range& rng) : rng(rng) {}
+
+  auto begin() noexcept
+  {
+    return std::rbegin(rng);
+  }
+
+  auto end() noexcept
+  {
+    return std::rend(rng);
+  }
+};
+
+template <typename Range>
+class Reverse_range<Range&&>
+{
+private:
+  Range rng;
+
+public:
+  explicit Reverse_range(Range&& rng) : rng(std::move(rng)) {}
+
+  auto begin() noexcept
+  {
+    return std::rbegin(rng);
+  }
+
+  auto end() noexcept
+  {
+    return std::rend(rng);
+  }
+
+  auto size() const noexcept
+  {
+    return rng.size();
+  }
+};
+
+// deduction guide for rvalue ref, to move
+template <typename Range>
+Reverse_range(Range&& rng) -> Reverse_range<Range&&>;
+
 } // namespace fai
 
 namespace adp = boost::adaptors;

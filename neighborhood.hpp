@@ -2,7 +2,150 @@
 
 #include "utils.hpp"
 
+#include <fmt/core.h>
+#include <fmt/ranges.h>
+
 #include <utility>
+
+class Neighborhood_base
+{
+private:
+  fai::vector<fai::Index> base_solution;
+
+public:
+  explicit Neighborhood_base(fai::vector<fai::Index> base_solution)
+    : base_solution(std::move(base_solution))
+  {
+  }
+
+  virtual ~Neighborhood_base() = default;
+
+protected:
+  class Polymorphic_iterator
+  {
+  public:
+    virtual ~Polymorphic_iterator() = default;
+
+    virtual void advance()
+    {
+      move_by(1);
+    }
+
+    virtual void move_by(int dist) = 0;
+
+    virtual void go_back()
+    {
+      move_by(-1);
+    }
+
+    virtual fai::vector<fai::Index> const& get_current_neighbor() = 0;
+
+    [[nodiscard]] virtual bool is_end() const noexcept = 0;
+    [[nodiscard]] virtual bool is_rend() const noexcept = 0;
+  };
+
+public:
+  struct End_sentinel
+  {
+  };
+
+  class Iterator
+  {
+  private:
+    std::unique_ptr<Polymorphic_iterator> it;
+
+  public:
+    Iterator(std::unique_ptr<Polymorphic_iterator> it) : it(std::move(it)) {}
+
+    Iterator& operator++()
+    {
+      it->advance();
+      return *this;
+    }
+
+    Iterator& operator+=(int dist)
+    {
+      it->move_by(dist);
+      return *this;
+    }
+
+    // fai::vector<fai::Index> const& operator[](int dist) const
+    // {
+    //   it->move_by(dist);
+    //   return it->get_current_neighbor();
+    // }
+
+    fai::vector<fai::Index> const& operator*() const noexcept
+    {
+      return it->get_current_neighbor();
+    }
+
+    bool operator==(End_sentinel rhs) const noexcept
+    {
+      return it->is_end();
+    }
+
+    bool operator!=(End_sentinel rhs) const noexcept
+    {
+      return !(*this == rhs);
+    }
+  };
+
+  class Reverse_iterator
+  {
+  private:
+    std::unique_ptr<Polymorphic_iterator> it;
+
+  public:
+    Reverse_iterator(std::unique_ptr<Polymorphic_iterator> it) : it(std::move(it)) {}
+
+    Reverse_iterator& operator++()
+    {
+      it->go_back();
+      return *this;
+    }
+
+    fai::vector<fai::Index> const& operator*() const noexcept
+    {
+      return it->get_current_neighbor();
+    }
+
+    bool operator==(End_sentinel rhs) const noexcept
+    {
+      return it->is_rend();
+    }
+
+    bool operator!=(End_sentinel rhs) const noexcept
+    {
+      return !(*this == rhs);
+    }
+  };
+
+  virtual Iterator         begin() noexcept = 0;
+  virtual Reverse_iterator rbegin() noexcept = 0;
+
+  End_sentinel end() noexcept
+  {
+    return {};
+  }
+
+  End_sentinel rend() noexcept
+  {
+    return {};
+  }
+
+  fai::vector<fai::Index>& get_base_solution() noexcept
+  {
+    return base_solution;
+  }
+
+  fai::vector<fai::Index> const& get_base_solution() const noexcept
+  {
+    return base_solution;
+  }
+
+  virtual fai::Index size() const noexcept = 0;
+};
 
 /**
  * @brief Inversion neighborhood from the first elements to the lasts
@@ -62,12 +205,12 @@ public:
     }
   };
 
-  Iterator begin()
+  Iterator begin() noexcept
   {
     return Iterator(base_solution);
   }
 
-  Iterator end()
+  Iterator end() noexcept
   {
     return Iterator(base_solution.size() - 1);
   }
@@ -143,12 +286,12 @@ public:
     }
   };
 
-  Iterator begin()
+  Iterator begin() noexcept
   {
     return Iterator(base_solution);
   }
 
-  Iterator end()
+  Iterator end() noexcept
   {
     return {};
   }
@@ -177,18 +320,13 @@ public:
  * 1|4|3|2|5|6
  *
  */
-class Reverse_neighborhood
+class Reverse_neighborhood : public Neighborhood_base
 {
-private:
-  fai::vector<fai::Index> base_solution;
-
 public:
-  explicit Reverse_neighborhood(fai::vector<fai::Index> base_solution)
-    : base_solution(std::move(base_solution))
-  {
-  }
+  using Neighborhood_base::Neighborhood_base;
 
-  class Iterator
+private:
+  class Iterator_derived : public Polymorphic_iterator
   {
   private:
     fai::vector<fai::Index> solution;
@@ -196,84 +334,138 @@ public:
     fai::Index              modif_pos_end{modif_pos_beg + 2};
 
   public:
-    explicit Iterator(fai::Index beg_pos) : modif_pos_beg(beg_pos) {}
+    static constexpr struct Reverse_tag
+    {
+    } reverse_tag;
 
-    Iterator(fai::vector<fai::Index> const& base_sol) : solution(base_sol)
+    Iterator_derived(fai::vector<fai::Index> const& base_sol) : solution(base_sol)
     {
       std::reverse(std::next(solution.begin(), modif_pos_beg),
                    std::next(solution.begin(), modif_pos_end));
     }
 
-    Iterator& operator++()
+    Iterator_derived(fai::vector<fai::Index> const& base_sol, Reverse_tag)
+      : solution(base_sol), modif_pos_beg(base_sol.size() - 2)
     {
-      next_range();
-      if (valid_range())
-      {
-        reverse_sel_range();
-      }
-      return *this;
+      std::reverse(std::next(solution.begin(), modif_pos_beg),
+                   std::next(solution.begin(), modif_pos_end));
     }
 
-    fai::vector<fai::Index> const& operator*() const noexcept
+    void advance() override
+    {
+      fmt::print("b: {}, e: {}\n", modif_pos_beg, modif_pos_end);
+      next_range();
+      if (!is_end())
+      {
+        inc_reversed_range();
+      }
+    }
+
+    void move_by(int dist) override
+    {
+      // restore
+      reverse_range();
+      for (int i = 0; i < dist; ++i)
+      {
+        ++modif_pos_end;
+        if (modif_pos_end == solution.size() + 1)
+        {
+          ++modif_pos_beg;
+          modif_pos_end = modif_pos_beg + 2;
+        }
+      }
+      reverse_range();
+    }
+
+    void go_back() override
+    {
+      --modif_pos_end;
+      if (modif_pos_end == modif_pos_beg + 1)
+      {
+        // restore
+        std::swap(solution[modif_pos_beg], solution[modif_pos_beg + 1]);
+        --modif_pos_beg;
+        modif_pos_end = solution.size();
+        if (!is_rend())
+        {
+          // reverse all in subrange
+          std::reverse(std::next(std::begin(solution), modif_pos_beg),
+                       std::end(solution));
+        }
+      }
+      else
+      {
+        // rotate left
+        auto beg = std::next(std::begin(solution), modif_pos_beg);
+        std::rotate(beg, beg + 1, std::next(std::begin(solution), modif_pos_end + 1));
+      }
+    }
+
+    fai::vector<fai::Index> const& get_current_neighbor() override
     {
       return solution;
     }
 
-    bool operator==(Iterator const& rhs) const noexcept
+    [[nodiscard]] bool is_end() const noexcept override
     {
-      return modif_pos_beg == rhs.modif_pos_beg && modif_pos_end == rhs.modif_pos_end;
+      return modif_pos_beg >= solution.size() - 1;
     }
 
-    bool operator!=(Iterator const& rhs) const noexcept
+    [[nodiscard]] bool is_rend() const noexcept override
     {
-      return !(*this == rhs);
+      return modif_pos_beg < 0;
     }
 
   private:
-    [[nodiscard]] bool valid_range() const noexcept
-    {
-      return modif_pos_beg < solution.size() - 1;
-    }
-
     void next_range() noexcept
     {
       ++modif_pos_end;
       if (modif_pos_end == solution.size() + 1)
       {
-        // restore
-        std::reverse(std::next(std::begin(solution), modif_pos_beg), std::end(solution));
+        --modif_pos_end;
+        reverse_range();
+
         ++modif_pos_beg;
         modif_pos_end = modif_pos_beg + 2;
       }
     }
 
-    void reverse_sel_range()
+    void inc_reversed_range()
     {
       // rotate right
       auto rbegin =
         std::make_reverse_iterator(std::next(std::begin(solution), modif_pos_end));
       std::rotate(rbegin, rbegin + 1, std::prev(std::rend(solution), modif_pos_beg));
     }
+
+    void reverse_range()
+    {
+      std::reverse(std::next(std::begin(solution), modif_pos_beg),
+                   std::next(std::begin(solution), modif_pos_end));
+    }
   };
 
-  Iterator begin()
+public:
+  Iterator begin() noexcept override
   {
-    return Iterator(base_solution);
+    return Iterator(std::make_unique<Iterator_derived>(get_base_solution()));
   }
 
-  Iterator end()
+  Reverse_iterator rbegin() noexcept override
   {
-    return Iterator(base_solution.size() - 1);
+    return Reverse_iterator(
+      std::make_unique<Iterator_derived>(get_base_solution(),
+                                         Iterator_derived::reverse_tag));
   }
 
-  fai::Index size() const noexcept
+  // Iterator end()
+  // {
+  //   return Iterator(base_solution.size() - 1);
+  // }
+
+  fai::Index size() const noexcept override
   {
-    fai::Index n = base_solution.size();
+    fai::Index n = get_base_solution().size();
     return n * (n - 1) / 2;
-  }
-
-  fai::vector<fai::Index>& get_base_solution() noexcept
-  {
-    return base_solution;
   }
 };
