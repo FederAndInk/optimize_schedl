@@ -7,6 +7,7 @@
 #include <fmt/ranges.h>
 
 #include <algorithm>
+#include <csignal>
 #include <filesystem>
 #include <fstream>
 #include <future>
@@ -16,6 +17,8 @@
 #include <numeric>
 #include <random>
 #include <stdexcept>
+
+namespace fs = std::filesystem;
 
 fai::vector<fai::Index> read_solution(std::istream& in, fai::Index nb_tasks)
 {
@@ -52,13 +55,26 @@ void treat_solution(fai::vector<Task> const&  tasks,
                     std::string const&        name,
                     std::string_view          desc)
 {
-  fmt::print("Total cost {}: {:L}\n", desc, evaluate(tasks, sol));
+  fai::Cost cost = evaluate(tasks, sol);
+  fmt::print("Total cost {}: {:L}\n", desc, cost);
 
   std::filesystem::create_directory("sols");
-  std::ofstream schedl_out_file("sols/gen_sol_" + name + ".txt");
-  std::copy(std::begin(sol),
-            std::end(sol),
-            std::ostream_iterator<fai::Index>(schedl_out_file, "\n"));
+  std::ofstream schedl_out_file(fmt::format("sols/gen_sol_{}_{}.txt", cost, name));
+  if (!schedl_out_file)
+  {
+    fmt::print("error with file: {}\n", "sols/gen_sol_" + name + ".txt");
+  }
+  else
+  {
+    std::copy(std::begin(sol),
+              std::end(sol),
+              std::ostream_iterator<fai::Index>(schedl_out_file, "\n"));
+  }
+}
+
+extern "C" void interrupt_handler(int)
+{
+  fai::stop_request() = true;
 }
 
 int main(int argc, char** argv)
@@ -69,6 +85,9 @@ int main(int argc, char** argv)
     fmt::print("usage: {} tasks_file [scheduling_file]\n", argv[0]);
     return 1;
   }
+
+  std::signal(SIGINT, interrupt_handler);
+
   std::ifstream tasks_file(argv[1]);
   if (!tasks_file)
   {
@@ -111,6 +130,16 @@ int main(int argc, char** argv)
 
   fai::vector<fai::Index> best_sol = sol;
   fai::Cost               best_sol_cost = sol_cost;
+
+  std::iota(std::begin(sol), std::end(sol), 0);
+  if (fai::Cost given_ord_cost = evaluate(tasks, sol); //
+      best_sol_cost > given_ord_cost)
+  {
+    best_sol = sol;
+    best_sol_cost = given_ord_cost;
+    best_algo = "given order";
+  }
+
   for (auto&& heuristic : get_heuristics())
   {
     sol = ct_heuristic(tasks, select(heuristic.fn));
@@ -130,23 +159,23 @@ int main(int argc, char** argv)
   // fmt::print("Total cost vnd from {}: {:L}\n", best_algo, evaluate(tasks,
   // best_vnd_sol)); fmt::print("VND Scheduling: {}\n", best_vnd_sol);
 
-  // auto rcssn_sol = std::async(
-  //   std::launch::async,
-  //   [&tasks, &best_sol]()
-  //   {
-  //     return hill_climbing<Reverse_consecutive_single_swap_neighborhood>(tasks,
-  //                                                                        best_sol,
-  //                                                                        select2first);
-  //   });
-  // auto cssn_sol =
-  //   std::async(std::launch::async,
-  //              [&tasks, &best_sol]()
-  //              {
-  //                return hill_climbing<Consecutive_single_swap_neighborhood>(tasks,
-  //                                                                           best_sol,
-  //                                                                           select2first);
-  //              });
-  auto rn_sol = std::async(
+  auto rcssn_sol = std::async(
+    std::launch::async,
+    [&tasks, &best_sol]()
+    {
+      return hill_climbing<Reverse_consecutive_single_swap_neighborhood>(tasks,
+                                                                         best_sol,
+                                                                         select2best);
+    });
+  auto cssn_sol =
+    std::async(std::launch::async,
+               [&tasks, &best_sol]()
+               {
+                 return hill_climbing<Consecutive_single_swap_neighborhood>(tasks,
+                                                                            best_sol,
+                                                                            select2best);
+               });
+  auto brn_sol = std::async(
     std::launch::async,
     [&tasks, &best_sol]()
     {
@@ -154,20 +183,34 @@ int main(int argc, char** argv)
                                                                         best_sol,
                                                                         select2best);
     });
+  auto rn_sol =
+    std::async(std::launch::async,
+               [&tasks, &best_sol]() {
+                 return hill_climbing<Reverse_neighborhood>(tasks, best_sol, select2best);
+               });
 
-  // treat_solution(tasks,
-  //                rcssn_sol.get(),
-  //                argv[1] + "_hc_first_rcssn"s,
-  //                "Hill climbing select2first"
-  //                " Reverse_consecutive_single_swap_neighborhood");
-  // treat_solution(tasks,
-  //                cssn_sol.get(),
-  //                argv[1] + "_hc_first_cssn"s,
-  //                "Hill climbing select2first Consecutive_single_swap_neighborhood");
+  auto base_out_fname = fs::path(argv[1]).stem().string();
+
+  treat_solution(tasks,
+                 rcssn_sol.get(),
+                 base_out_fname + "_hc_best_rcssn"s,
+                 "Hill climbing select2best"
+                 " Reverse_consecutive_single_swap_neighborhood");
+  treat_solution(tasks,
+                 cssn_sol.get(),
+                 base_out_fname + "_hc_best_cssn"s,
+                 "Hill climbing select2best Consecutive_single_swap_neighborhood");
+  treat_solution(
+    tasks,
+    brn_sol.get(),
+    base_out_fname + "_hc_best_brn"s,
+    fmt::format("Hill climbing select2best {}",
+                get_neighborhood_name<Backward_neighborhood<Reverse_neighborhood>>()));
   treat_solution(tasks,
                  rn_sol.get(),
-                 argv[1] + "_hc_first_rn"s,
-                 "Hill climbing select2first Reverse_neighborhood");
+                 base_out_fname + "_hc_best_rn"s,
+                 fmt::format("Hill climbing select2best {}",
+                             get_neighborhood_name<Reverse_neighborhood>()));
 
   // sol = hill_climbing(tasks, best_sol, select2worst);
   // fmt::print("Total cost hill_climbing select2worst: {:L}\n", evaluate(tasks, sol));

@@ -101,6 +101,10 @@ fai::vector<fai::Index> hill_climbing(fai::vector<Task> const& tasks,
       // no more better neighbors
       return n1.get_base_solution();
     }
+    else if (fai::stop_request())
+    {
+      return selected_neigh;
+    }
     else
     {
       base_solution = std::move(selected_neigh);

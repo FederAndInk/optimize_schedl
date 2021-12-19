@@ -353,7 +353,6 @@ private:
 
     void advance() override
     {
-      fmt::print("b: {}, e: {}\n", modif_pos_beg, modif_pos_end);
       next_range();
       if (!is_end())
       {

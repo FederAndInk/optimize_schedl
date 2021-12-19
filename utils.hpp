@@ -4,6 +4,7 @@
 #include <boost/version.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -103,6 +104,12 @@ public:
     std::vector<T>::reserve(static_cast<v_size_type>(n));
   }
 };
+
+inline std::atomic<bool>& stop_request()
+{
+  static std::atomic<bool> request = false;
+  return request;
+}
 
 } // namespace fai
 
