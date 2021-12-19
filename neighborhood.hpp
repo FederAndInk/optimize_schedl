@@ -16,6 +16,9 @@ protected:
   class Polymorphic_iterator
   {
   public:
+    static constexpr struct Reverse_tag
+    {
+    } reverse_tag;
     virtual ~Polymorphic_iterator() = default;
 
     virtual void advance()
@@ -183,157 +186,84 @@ public:
  *      X->
  * 1|2|4|3|5|6
  */
-class Consecutive_single_swap_neighborhood
+class Consecutive_single_swap_neighborhood : public Neighborhood_base
 {
-private:
-  fai::vector<fai::Index> base_solution;
-
 public:
-  explicit Consecutive_single_swap_neighborhood(fai::vector<fai::Index> base_solution)
-    : base_solution(std::move(base_solution))
-  {
-  }
+  using Neighborhood_base::Neighborhood_base;
 
-  class Iterator
+private:
+  class Iterator_derived : public Polymorphic_iterator
   {
   private:
     fai::vector<fai::Index> solution;
     fai::Index              modif_pos{0};
 
   public:
-    Iterator(fai::Index pos) : modif_pos(pos) {}
-
-    explicit Iterator(fai::vector<fai::Index> const& base_sol) : solution(base_sol)
+    explicit Iterator_derived(fai::vector<fai::Index> const& base_sol)
+      : solution(base_sol)
+    {
+      std::swap(solution[modif_pos], solution[modif_pos + 1]);
+    }
+    Iterator_derived(fai::vector<fai::Index> const& base_sol, Reverse_tag)
+      : solution(base_sol), modif_pos(solution.size() - 2)
     {
       std::swap(solution[modif_pos], solution[modif_pos + 1]);
     }
 
-    Iterator& operator++()
+    void advance() override
     {
       ++modif_pos;
-      if (modif_pos < solution.size() - 1)
+      if (!is_fend())
       {
         std::swap(solution[modif_pos - 1], solution[modif_pos]);
         std::swap(solution[modif_pos], solution[modif_pos + 1]);
       }
-      return *this;
     }
 
-    fai::vector<fai::Index> const& operator*() const noexcept
-    {
-      return solution;
-    }
+    void move_by(int dist) override {}
 
-    bool operator==(Iterator const& rhs) const noexcept
-    {
-      return modif_pos == rhs.modif_pos;
-    }
-
-    bool operator!=(Iterator const& rhs) const noexcept
-    {
-      return !(*this == rhs);
-    }
-  };
-
-  Iterator begin() noexcept
-  {
-    return Iterator(base_solution);
-  }
-
-  Iterator end() noexcept
-  {
-    return Iterator(base_solution.size() - 1);
-  }
-
-  fai::vector<fai::Index>& get_base_solution() noexcept
-  {
-    return base_solution;
-  }
-
-  fai::Index size() const noexcept
-  {
-    return (base_solution.size() - 1);
-  }
-};
-
-/**
- * @brief Inversion neighborhood from the last elements to the firsts
- * 1|2|3|4|5|6
- *    <-X
- * 1|2|4|3|5|6
- */
-class Reverse_consecutive_single_swap_neighborhood
-{
-private:
-  fai::vector<fai::Index> base_solution;
-
-public:
-  explicit Reverse_consecutive_single_swap_neighborhood(
-    fai::vector<fai::Index> base_solution)
-    : base_solution(std::move(base_solution))
-  {
-  }
-
-  class Iterator
-  {
-  private:
-    fai::vector<fai::Index> solution;
-    fai::Index              modif_pos{0};
-
-  public:
-    Iterator() = default;
-
-    explicit Iterator(fai::vector<fai::Index> const& base_sol)
-      : solution(base_sol), modif_pos(solution.size() - 1)
-    {
-      std::swap(solution[modif_pos], solution[modif_pos - 1]);
-    }
-
-    Iterator& operator++()
+    void go_back() override
     {
       --modif_pos;
-      if (modif_pos > 0)
+      if (!is_rend())
       {
-        std::swap(solution[modif_pos + 1], solution[modif_pos]);
-        std::swap(solution[modif_pos], solution[modif_pos - 1]);
+        std::swap(solution[modif_pos + 1], solution[modif_pos + 2]);
+        std::swap(solution[modif_pos], solution[modif_pos + 1]);
       }
-      return *this;
     }
 
-    fai::vector<fai::Index> const& operator*() const noexcept
+    fai::vector<fai::Index> const& get_current_neighbor() const noexcept override
     {
       return solution;
     }
 
-    bool operator==(Iterator const& rhs) const noexcept
+    [[nodiscard]] bool is_fend() const noexcept override
     {
-      return modif_pos == rhs.modif_pos;
+      return modif_pos >= solution.size() - 1;
     }
 
-    bool operator!=(Iterator const& rhs) const noexcept
+    [[nodiscard]] bool is_rend() const noexcept override
     {
-      return !(*this == rhs);
+      return modif_pos < 0;
     }
   };
 
-  Iterator begin() noexcept
+public:
+  Iterator begin() noexcept override
   {
-    return Iterator(base_solution);
+    return Iterator(std::make_unique<Iterator_derived>(get_base_solution()));
   }
 
-  Iterator end() noexcept
+  Iterator rbegin() noexcept override
   {
-    return {};
+    return Iterator(std::make_unique<Polymorphic_reverse_iterator<Iterator_derived>>(
+      get_base_solution(),
+      Iterator_derived::reverse_tag));
   }
 
-  fai::vector<fai::Index>& get_base_solution() noexcept
+  fai::Index size() const noexcept override
   {
-    return base_solution;
-  }
-
-  fai::Index size() const noexcept
-  {
-    return (base_solution.size() - 1);
+    return (get_base_solution().size() - 1);
   }
 };
 
@@ -364,10 +294,6 @@ private:
     fai::Index              modif_pos_end{modif_pos_beg + 2};
 
   public:
-    static constexpr struct Reverse_tag
-    {
-    } reverse_tag;
-
     Iterator_derived(fai::vector<fai::Index> const& base_sol) : solution(base_sol)
     {
       std::reverse(std::next(solution.begin(), modif_pos_beg),
@@ -418,7 +344,6 @@ private:
         if (!is_rend())
         {
           // reverse all in subrange
-          fmt::print("b: {}, e: {}\n", modif_pos_beg, modif_pos_end);
           std::reverse(std::next(std::begin(solution), modif_pos_beg),
                        std::end(solution));
         }
@@ -586,11 +511,6 @@ std::string get_neighborhood_name()
   if constexpr (std::is_same_v<Base_neighborhood, Consecutive_single_swap_neighborhood>)
   {
     ret += "Consecutive_single_swap_neighborhood";
-  }
-  else if (std::is_same_v<Base_neighborhood,
-                          Reverse_consecutive_single_swap_neighborhood>)
-  {
-    ret += "Reverse_consecutive_single_swap_neighborhood";
   }
   else if (std::is_same_v<Base_neighborhood, Reverse_neighborhood>)
   {

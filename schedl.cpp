@@ -159,13 +159,14 @@ int main(int argc, char** argv)
   // fmt::print("Total cost vnd from {}: {:L}\n", best_algo, evaluate(tasks,
   // best_vnd_sol)); fmt::print("VND Scheduling: {}\n", best_vnd_sol);
 
-  auto rcssn_sol = std::async(
+  auto bcssn_sol = std::async(
     std::launch::async,
     [&tasks, &best_sol]()
     {
-      return hill_climbing<Reverse_consecutive_single_swap_neighborhood>(tasks,
-                                                                         best_sol,
-                                                                         select2best);
+      return hill_climbing<Backward_neighborhood<Consecutive_single_swap_neighborhood>>(
+        tasks,
+        best_sol,
+        select2best);
     });
   auto cssn_sol =
     std::async(std::launch::async,
@@ -192,8 +193,8 @@ int main(int argc, char** argv)
   auto base_out_fname = fs::path(argv[1]).stem().string();
 
   treat_solution(tasks,
-                 rcssn_sol.get(),
-                 base_out_fname + "_hc_best_rcssn"s,
+                 bcssn_sol.get(),
+                 base_out_fname + "_hc_best_bcssn"s,
                  "Hill climbing select2best"
                  " Reverse_consecutive_single_swap_neighborhood");
   treat_solution(tasks,

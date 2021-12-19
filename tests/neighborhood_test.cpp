@@ -113,9 +113,9 @@ int main(int argc, char** argv)
                                                    {0, 1, 2, 3, 4, 5, 6, 7, 9, 8}};
 
   test_neighborhood<Consecutive_single_swap_neighborhood>(base_sol, cssn_neighs);
-  test_neighborhood<Reverse_consecutive_single_swap_neighborhood>(base_sol,
-                                                                  cssn_neighs |
-                                                                    adp::reversed);
+  test_neighborhood<Backward_neighborhood<Consecutive_single_swap_neighborhood>>(
+    base_sol,
+    cssn_neighs | adp::reversed);
   std::vector<fai::vector<fai::Index>> rn_neighs{
     {1, 0, 2, 3, 4, 5, 6, 7, 8, 9}, {2, 1, 0, 3, 4, 5, 6, 7, 8, 9},
     {3, 2, 1, 0, 4, 5, 6, 7, 8, 9}, {4, 3, 2, 1, 0, 5, 6, 7, 8, 9},
