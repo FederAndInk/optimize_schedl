@@ -7,18 +7,10 @@
 
 #include <utility>
 
-class Neighborhood_base
+class Neighborhood_abstract
 {
-private:
-  fai::vector<fai::Index> base_solution;
-
 public:
-  explicit Neighborhood_base(fai::vector<fai::Index> base_solution)
-    : base_solution(std::move(base_solution))
-  {
-  }
-
-  virtual ~Neighborhood_base() = default;
+  virtual ~Neighborhood_abstract() = default;
 
 protected:
   class Polymorphic_iterator
@@ -38,10 +30,62 @@ protected:
       move_by(-1);
     }
 
-    virtual fai::vector<fai::Index> const& get_current_neighbor() = 0;
+    virtual fai::vector<fai::Index> const& get_current_neighbor() const noexcept = 0;
 
-    [[nodiscard]] virtual bool is_end() const noexcept = 0;
+    /**
+     * @brief end (could be forward or reverse)
+     *
+     * DO NOT Call in derived, it is replace in mixin Polymorphic_reverse_iterator
+     *
+     * @return true
+     * @return false
+     */
+    [[nodiscard]] virtual bool is_end() const noexcept
+    {
+      return is_fend();
+    }
+    /**
+     * @brief forward end
+     *
+     * @return true
+     * @return false
+     */
+    [[nodiscard]] virtual bool is_fend() const noexcept = 0;
     [[nodiscard]] virtual bool is_rend() const noexcept = 0;
+  };
+
+  template <class Polymorphic_derived_iterator>
+  class Polymorphic_reverse_iterator : public Polymorphic_derived_iterator
+  {
+  public:
+    static_assert(std::is_base_of_v<Polymorphic_iterator, Polymorphic_derived_iterator>);
+
+    using Polymorphic_derived_iterator::Polymorphic_derived_iterator;
+
+    void advance() override
+    {
+      Polymorphic_derived_iterator::go_back();
+    }
+
+    void move_by(int dist) override
+    {
+      Polymorphic_derived_iterator::move_by(-dist);
+    }
+
+    void go_back() override
+    {
+      Polymorphic_derived_iterator::advance();
+    }
+
+    fai::vector<fai::Index> const& get_current_neighbor() const noexcept override
+    {
+      return Polymorphic_derived_iterator::get_current_neighbor();
+    }
+
+    [[nodiscard]] bool is_end() const noexcept override
+    {
+      return Polymorphic_derived_iterator::is_rend();
+    }
   };
 
 public:
@@ -91,38 +135,8 @@ public:
     }
   };
 
-  class Reverse_iterator
-  {
-  private:
-    std::unique_ptr<Polymorphic_iterator> it;
-
-  public:
-    Reverse_iterator(std::unique_ptr<Polymorphic_iterator> it) : it(std::move(it)) {}
-
-    Reverse_iterator& operator++()
-    {
-      it->go_back();
-      return *this;
-    }
-
-    fai::vector<fai::Index> const& operator*() const noexcept
-    {
-      return it->get_current_neighbor();
-    }
-
-    bool operator==(End_sentinel rhs) const noexcept
-    {
-      return it->is_rend();
-    }
-
-    bool operator!=(End_sentinel rhs) const noexcept
-    {
-      return !(*this == rhs);
-    }
-  };
-
-  virtual Iterator         begin() noexcept = 0;
-  virtual Reverse_iterator rbegin() noexcept = 0;
+  virtual Iterator begin() noexcept = 0;
+  virtual Iterator rbegin() noexcept = 0;
 
   End_sentinel end() noexcept
   {
@@ -134,17 +148,33 @@ public:
     return {};
   }
 
-  fai::vector<fai::Index>& get_base_solution() noexcept
-  {
-    return base_solution;
-  }
+  virtual fai::vector<fai::Index>& get_base_solution() noexcept = 0;
 
-  fai::vector<fai::Index> const& get_base_solution() const noexcept
-  {
-    return base_solution;
-  }
+  virtual fai::vector<fai::Index> const& get_base_solution() const noexcept = 0;
 
   virtual fai::Index size() const noexcept = 0;
+};
+
+class Neighborhood_base : public Neighborhood_abstract
+{
+private:
+  fai::vector<fai::Index> base_solution;
+
+public:
+  explicit Neighborhood_base(fai::vector<fai::Index> base_solution)
+    : base_solution(std::move(base_solution))
+  {
+  }
+
+  fai::vector<fai::Index>& get_base_solution() noexcept override
+  {
+    return base_solution;
+  }
+
+  fai::vector<fai::Index> const& get_base_solution() const noexcept override
+  {
+    return base_solution;
+  }
 };
 
 /**
@@ -354,7 +384,7 @@ private:
     void advance() override
     {
       next_range();
-      if (!is_end())
+      if (!is_fend())
       {
         inc_reversed_range();
       }
@@ -388,6 +418,7 @@ private:
         if (!is_rend())
         {
           // reverse all in subrange
+          fmt::print("b: {}, e: {}\n", modif_pos_beg, modif_pos_end);
           std::reverse(std::next(std::begin(solution), modif_pos_beg),
                        std::end(solution));
         }
@@ -400,12 +431,12 @@ private:
       }
     }
 
-    fai::vector<fai::Index> const& get_current_neighbor() override
+    fai::vector<fai::Index> const& get_current_neighbor() const noexcept override
     {
       return solution;
     }
 
-    [[nodiscard]] bool is_end() const noexcept override
+    [[nodiscard]] bool is_fend() const noexcept override
     {
       return modif_pos_beg >= solution.size() - 1;
     }
@@ -450,11 +481,11 @@ public:
     return Iterator(std::make_unique<Iterator_derived>(get_base_solution()));
   }
 
-  Reverse_iterator rbegin() noexcept override
+  Iterator rbegin() noexcept override
   {
-    return Reverse_iterator(
-      std::make_unique<Iterator_derived>(get_base_solution(),
-                                         Iterator_derived::reverse_tag));
+    return Iterator(std::make_unique<Polymorphic_reverse_iterator<Iterator_derived>>(
+      get_base_solution(),
+      Iterator_derived::reverse_tag));
   }
 
   // Iterator end()
@@ -470,7 +501,7 @@ public:
 };
 
 template <typename Neighborhood>
-class Backward_neighborhood
+class Backward_neighborhood : public Neighborhood_abstract
 {
 private:
   Neighborhood nbh;
@@ -483,27 +514,27 @@ public:
   {
   }
 
-  auto begin() noexcept
+  Iterator begin() noexcept override
   {
     return std::rbegin(nbh);
   }
 
-  auto end() noexcept
+  Iterator rbegin() noexcept override
   {
-    return std::rend(nbh);
+    return std::begin(nbh);
   }
 
-  fai::vector<fai::Index>& get_base_solution() noexcept
-  {
-    return nbh.get_base_solution();
-  }
-
-  fai::vector<fai::Index> const& get_base_solution() const noexcept
+  fai::vector<fai::Index>& get_base_solution() noexcept override
   {
     return nbh.get_base_solution();
   }
 
-  fai::Index size() const noexcept
+  fai::vector<fai::Index> const& get_base_solution() const noexcept override
+  {
+    return nbh.get_base_solution();
+  }
+
+  fai::Index size() const noexcept override
   {
     return nbh.size();
   }
