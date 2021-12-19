@@ -13,19 +13,19 @@ struct Select2_ret
   static constexpr bool BREAK = true;
   static constexpr bool CONTINUE = false;
 
-  fai::vector<fai::Index> const& selected;
-  bool                           brk{false};
+  Scheduling const& selected;
+  bool              brk{false};
 };
 
 template <typename Neigh_op, typename Select2_fn>
-fai::vector<fai::Index> next_neighbor(fai::vector<Task> const& tasks,
-                                      Neigh_op&                neigh_op,
-                                      Select2_fn&&             select)
+Scheduling next_neighbor(fai::vector<Task> const& tasks,
+                         Neigh_op&                neigh_op,
+                         Select2_fn&&             select)
 {
   fai::Cost base_cost = evaluate(tasks, neigh_op.get_base_solution());
 
-  fai::vector<fai::Index> selected_neigh;
-  long                    nb_neigh = 0;
+  Scheduling selected_neigh;
+  long       nb_neigh = 0;
   for (auto const& neigh_sol : neigh_op)
   {
     if (fai::Cost curr_cost = evaluate(tasks, neigh_sol); //
@@ -52,16 +52,16 @@ fai::vector<fai::Index> next_neighbor(fai::vector<Task> const& tasks,
 }
 
 template <typename Select2_fn>
-inline fai::vector<fai::Index> vnd(fai::vector<Task> const& tasks,
-                                   fai::vector<fai::Index>  base_solution,
-                                   Select2_fn&&             select)
+inline Scheduling vnd(fai::vector<Task> const& tasks,
+                      Scheduling               base_solution,
+                      Select2_fn&&             select)
 {
   while (true)
   {
     Consecutive_single_swap_neighborhood n1(base_solution);
 
-    fai::Cost               base_cost = evaluate(tasks, base_solution);
-    fai::vector<fai::Index> selected_neigh = next_neighbor(tasks, n1, select);
+    fai::Cost  base_cost = evaluate(tasks, base_solution);
+    Scheduling selected_neigh = next_neighbor(tasks, n1, select);
 
     if (selected_neigh.empty())
     {
@@ -77,9 +77,9 @@ inline fai::vector<fai::Index> vnd(fai::vector<Task> const& tasks,
 }
 
 template <typename Neighborhood, typename Select2_fn>
-fai::vector<fai::Index> hill_climbing(fai::vector<Task> const& tasks,
-                                      fai::vector<fai::Index>  base_solution,
-                                      Select2_fn&&             select)
+Scheduling hill_climbing(fai::vector<Task> const& tasks,
+                         Scheduling               base_solution,
+                         Select2_fn&&             select)
 {
   fmt::print("hill_climbing with {}\n", get_neighborhood_name<Neighborhood>());
   long nb_loop = 0;
@@ -94,7 +94,7 @@ fai::vector<fai::Index> hill_climbing(fai::vector<Task> const& tasks,
     fmt::print("hc: Solution is at {:L} {:.2f} loop/s",
                base_cost,
                nb_loop / time_since_start.count());
-    fai::vector<fai::Index> selected_neigh = next_neighbor(tasks, n1, select);
+    Scheduling selected_neigh = next_neighbor(tasks, n1, select);
 
     if (selected_neigh.empty())
     {
@@ -124,23 +124,23 @@ fai::vector<fai::Index> hill_climbing(fai::vector<Task> const& tasks,
   }
 }
 
-inline Select2_ret select2best(fai::vector<Task> const&       tasks,
-                               fai::vector<fai::Index> const& lhs,
-                               fai::vector<fai::Index> const& rhs)
+inline Select2_ret select2best(fai::vector<Task> const& tasks,
+                               Scheduling const&        lhs,
+                               Scheduling const&        rhs)
 {
   return {(evaluate(tasks, lhs) <= evaluate(tasks, rhs)) ? lhs : rhs};
 }
 
-inline Select2_ret select2worst(fai::vector<Task> const&       tasks,
-                                fai::vector<fai::Index> const& lhs,
-                                fai::vector<fai::Index> const& rhs)
+inline Select2_ret select2worst(fai::vector<Task> const& tasks,
+                                Scheduling const&        lhs,
+                                Scheduling const&        rhs)
 {
   return {(evaluate(tasks, lhs) < evaluate(tasks, rhs)) ? rhs : lhs};
 }
 
-inline Select2_ret select2first(fai::vector<Task> const&       tasks,
-                                fai::vector<fai::Index> const& lhs,
-                                fai::vector<fai::Index> const& rhs)
+inline Select2_ret select2first(fai::vector<Task> const& tasks,
+                                Scheduling const&        lhs,
+                                Scheduling const&        rhs)
 {
   return {lhs, Select2_ret::BREAK};
 }

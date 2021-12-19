@@ -33,10 +33,10 @@ auto select(Eval_fn&& eval_fn)
 }
 
 template <typename Select_fn>
-fai::vector<fai::Index> ct_heuristic(fai::vector<Task> tasks, Select_fn&& f_select)
+Scheduling ct_heuristic(fai::vector<Task> tasks, Select_fn&& f_select)
 {
-  fai::Sched_time         curr_time = 0;
-  fai::vector<fai::Index> sol;
+  fai::Sched_time curr_time = 0;
+  Scheduling      sol;
 
   while (!tasks.empty())
   {

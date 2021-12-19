@@ -53,8 +53,9 @@ struct Task
   }
 };
 
-inline fai::Cost evaluate(fai::vector<Task> const&       tasks,
-                          fai::vector<fai::Index> const& solution)
+using Scheduling = fai::vector<fai::Index>;
+
+inline fai::Cost evaluate(fai::vector<Task> const& tasks, Scheduling const& solution)
 {
   std::unordered_set<fai::Index> uniq_sol(std::begin(solution), std::end(solution));
   if (tasks.size() != fai::ssize(uniq_sol))

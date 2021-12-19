@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Task.hpp"
 #include "utils.hpp"
 
 #include <fmt/core.h>
@@ -33,7 +34,7 @@ protected:
       move_by(-1);
     }
 
-    virtual fai::vector<fai::Index> const& get_current_neighbor() const noexcept = 0;
+    virtual Scheduling const& get_current_neighbor() const noexcept = 0;
 
     /**
      * @brief end (could be forward or reverse)
@@ -57,6 +58,7 @@ protected:
     [[nodiscard]] virtual bool is_rend() const noexcept = 0;
   };
 
+  // CRTP mixin: curiously recuring template pattern
   template <class Polymorphic_derived_iterator>
   class Polymorphic_reverse_iterator : public Polymorphic_derived_iterator
   {
@@ -80,7 +82,7 @@ protected:
       Polymorphic_derived_iterator::advance();
     }
 
-    fai::vector<fai::Index> const& get_current_neighbor() const noexcept override
+    Scheduling const& get_current_neighbor() const noexcept override
     {
       return Polymorphic_derived_iterator::get_current_neighbor();
     }
@@ -116,13 +118,13 @@ public:
       return *this;
     }
 
-    // fai::vector<fai::Index> const& operator[](int dist) const
+    // Scheduling const& operator[](int dist) const
     // {
     //   it->move_by(dist);
     //   return it->get_current_neighbor();
     // }
 
-    fai::vector<fai::Index> const& operator*() const noexcept
+    Scheduling const& operator*() const noexcept
     {
       return it->get_current_neighbor();
     }
@@ -151,9 +153,14 @@ public:
     return {};
   }
 
-  virtual fai::vector<fai::Index>& get_base_solution() noexcept = 0;
+  Scheduling at(fai::Index idx)
+  {
+    return *(begin() += idx);
+  }
 
-  virtual fai::vector<fai::Index> const& get_base_solution() const noexcept = 0;
+  virtual Scheduling& get_base_solution() noexcept = 0;
+
+  virtual Scheduling const& get_base_solution() const noexcept = 0;
 
   virtual fai::Index size() const noexcept = 0;
 };
@@ -161,20 +168,20 @@ public:
 class Neighborhood_base : public Neighborhood_abstract
 {
 private:
-  fai::vector<fai::Index> base_solution;
+  Scheduling base_solution;
 
 public:
-  explicit Neighborhood_base(fai::vector<fai::Index> base_solution)
+  explicit Neighborhood_base(Scheduling base_solution)
     : base_solution(std::move(base_solution))
   {
   }
 
-  fai::vector<fai::Index>& get_base_solution() noexcept override
+  Scheduling& get_base_solution() noexcept override
   {
     return base_solution;
   }
 
-  fai::vector<fai::Index> const& get_base_solution() const noexcept override
+  Scheduling const& get_base_solution() const noexcept override
   {
     return base_solution;
   }
@@ -195,16 +202,15 @@ private:
   class Iterator_derived : public Polymorphic_iterator
   {
   private:
-    fai::vector<fai::Index> solution;
-    fai::Index              modif_pos{0};
+    Scheduling solution;
+    fai::Index modif_pos{0};
 
   public:
-    explicit Iterator_derived(fai::vector<fai::Index> const& base_sol)
-      : solution(base_sol)
+    explicit Iterator_derived(Scheduling const& base_sol) : solution(base_sol)
     {
       std::swap(solution[modif_pos], solution[modif_pos + 1]);
     }
-    Iterator_derived(fai::vector<fai::Index> const& base_sol, Reverse_tag)
+    Iterator_derived(Scheduling const& base_sol, Reverse_tag)
       : solution(base_sol), modif_pos(solution.size() - 2)
     {
       std::swap(solution[modif_pos], solution[modif_pos + 1]);
@@ -220,7 +226,19 @@ private:
       }
     }
 
-    void move_by(int dist) override {}
+    void move_by(int dist) override
+    {
+      if (dist == 0)
+      {
+        return;
+      }
+
+      // restore
+      std::swap(solution[modif_pos], solution[modif_pos + 1]);
+
+      modif_pos += dist;
+      std::swap(solution[modif_pos], solution[modif_pos + 1]);
+    }
 
     void go_back() override
     {
@@ -232,7 +250,7 @@ private:
       }
     }
 
-    fai::vector<fai::Index> const& get_current_neighbor() const noexcept override
+    Scheduling const& get_current_neighbor() const noexcept override
     {
       return solution;
     }
@@ -289,18 +307,18 @@ private:
   class Iterator_derived : public Polymorphic_iterator
   {
   private:
-    fai::vector<fai::Index> solution;
-    fai::Index              modif_pos_beg{0};
-    fai::Index              modif_pos_end{modif_pos_beg + 2};
+    Scheduling solution;
+    fai::Index modif_pos_beg{0};
+    fai::Index modif_pos_end{modif_pos_beg + 2};
 
   public:
-    Iterator_derived(fai::vector<fai::Index> const& base_sol) : solution(base_sol)
+    Iterator_derived(Scheduling const& base_sol) : solution(base_sol)
     {
       std::reverse(std::next(solution.begin(), modif_pos_beg),
                    std::next(solution.begin(), modif_pos_end));
     }
 
-    Iterator_derived(fai::vector<fai::Index> const& base_sol, Reverse_tag)
+    Iterator_derived(Scheduling const& base_sol, Reverse_tag)
       : solution(base_sol), modif_pos_beg(base_sol.size() - 2)
     {
       std::reverse(std::next(solution.begin(), modif_pos_beg),
@@ -318,15 +336,34 @@ private:
 
     void move_by(int dist) override
     {
+      if (dist == 0)
+      {
+        return;
+      }
       // restore
       reverse_range();
-      for (int i = 0; i < dist; ++i)
+      if (dist > 0)
       {
-        ++modif_pos_end;
-        if (modif_pos_end == solution.size() + 1)
+        for (int i = 0; i < dist; ++i)
         {
-          ++modif_pos_beg;
-          modif_pos_end = modif_pos_beg + 2;
+          ++modif_pos_end;
+          if (modif_pos_end == solution.size() + 1)
+          {
+            ++modif_pos_beg;
+            modif_pos_end = modif_pos_beg + 2;
+          }
+        }
+      }
+      else
+      {
+        for (int i = 0; i < -dist; ++i)
+        {
+          --modif_pos_end;
+          if (modif_pos_end == modif_pos_beg + 1)
+          {
+            --modif_pos_beg;
+            modif_pos_end = solution.size();
+          }
         }
       }
       reverse_range();
@@ -356,7 +393,7 @@ private:
       }
     }
 
-    fai::vector<fai::Index> const& get_current_neighbor() const noexcept override
+    Scheduling const& get_current_neighbor() const noexcept override
     {
       return solution;
     }
@@ -434,8 +471,7 @@ private:
 public:
   using Base_neighborhood = Neighborhood;
 
-  explicit Backward_neighborhood(fai::vector<fai::Index> base_solution)
-    : nbh(std::move(base_solution))
+  explicit Backward_neighborhood(Scheduling base_solution) : nbh(std::move(base_solution))
   {
   }
 
@@ -449,12 +485,12 @@ public:
     return std::begin(nbh);
   }
 
-  fai::vector<fai::Index>& get_base_solution() noexcept override
+  Scheduling& get_base_solution() noexcept override
   {
     return nbh.get_base_solution();
   }
 
-  fai::vector<fai::Index> const& get_base_solution() const noexcept override
+  Scheduling const& get_base_solution() const noexcept override
   {
     return nbh.get_base_solution();
   }

@@ -1,3 +1,4 @@
+#include "../Task.hpp"
 #include "../neighborhood.hpp"
 #include "../utils.hpp"
 
@@ -70,7 +71,7 @@ void print_rng_diffs(R1&& r1, R2&& r2)
 }
 
 template <typename Neighborhood, typename Rng>
-void test_neighborhood(fai::vector<fai::Index> const& base_sol, Rng const& rng_expected)
+void test_neighborhood(Scheduling const& base_sol, Rng const& rng_expected)
 {
   Neighborhood nbh{base_sol};
   fmt::print("{}:\n", get_neighborhood_name<decltype(nbh)>());
@@ -96,27 +97,50 @@ void test_neighborhood(fai::vector<fai::Index> const& base_sol, Rng const& rng_e
   assert_equal(nbh.size() == nb, "size isn't correctly computed");
 }
 
+template <typename Neighborhood, typename Rng>
+void random_access_neighbor_test(Scheduling const& base_sol, Rng const& rng_expected)
+{
+  static std::mt19937 gen(std::random_device{}());
+
+  Neighborhood ntest{base_sol};
+
+  std::uniform_int_distribution dist(0, ntest.size() - 1);
+
+  fai::Index random_neigh_idx = dist(gen);
+  auto       rand_pick = ntest.begin();
+  rand_pick += random_neigh_idx;
+  fmt::print("random access test for {}\n", get_neighborhood_name<Neighborhood>());
+  assert_equal(
+    *rand_pick == rng_expected[random_neigh_idx],
+    fmt::format("neighbor isn't generated correctly at pos {}", random_neigh_idx));
+  fmt::print("  | received ");
+  print_rng_diffs(base_sol, *rand_pick);
+  fmt::print("\n  | expected ");
+  print_rng_diffs(base_sol, rng_expected[random_neigh_idx]);
+  fmt::print("\n");
+}
+
 int main(int argc, char** argv)
 {
-  fai::vector<fai::Index> base_sol(10);
+  Scheduling base_sol(10);
   std::iota(std::begin(base_sol), std::end(base_sol), 0);
   fmt::print("base: {}\n", base_sol);
 
-  std::vector<fai::vector<fai::Index>> cssn_neighs{{1, 0, 2, 3, 4, 5, 6, 7, 8, 9},
-                                                   {0, 2, 1, 3, 4, 5, 6, 7, 8, 9},
-                                                   {0, 1, 3, 2, 4, 5, 6, 7, 8, 9},
-                                                   {0, 1, 2, 4, 3, 5, 6, 7, 8, 9},
-                                                   {0, 1, 2, 3, 5, 4, 6, 7, 8, 9},
-                                                   {0, 1, 2, 3, 4, 6, 5, 7, 8, 9},
-                                                   {0, 1, 2, 3, 4, 5, 7, 6, 8, 9},
-                                                   {0, 1, 2, 3, 4, 5, 6, 8, 7, 9},
-                                                   {0, 1, 2, 3, 4, 5, 6, 7, 9, 8}};
+  std::vector<Scheduling> const cssn_neighs{{1, 0, 2, 3, 4, 5, 6, 7, 8, 9},
+                                            {0, 2, 1, 3, 4, 5, 6, 7, 8, 9},
+                                            {0, 1, 3, 2, 4, 5, 6, 7, 8, 9},
+                                            {0, 1, 2, 4, 3, 5, 6, 7, 8, 9},
+                                            {0, 1, 2, 3, 5, 4, 6, 7, 8, 9},
+                                            {0, 1, 2, 3, 4, 6, 5, 7, 8, 9},
+                                            {0, 1, 2, 3, 4, 5, 7, 6, 8, 9},
+                                            {0, 1, 2, 3, 4, 5, 6, 8, 7, 9},
+                                            {0, 1, 2, 3, 4, 5, 6, 7, 9, 8}};
 
   test_neighborhood<Consecutive_single_swap_neighborhood>(base_sol, cssn_neighs);
   test_neighborhood<Backward_neighborhood<Consecutive_single_swap_neighborhood>>(
     base_sol,
     cssn_neighs | adp::reversed);
-  std::vector<fai::vector<fai::Index>> rn_neighs{
+  std::vector<Scheduling> const rn_neighs{
     {1, 0, 2, 3, 4, 5, 6, 7, 8, 9}, {2, 1, 0, 3, 4, 5, 6, 7, 8, 9},
     {3, 2, 1, 0, 4, 5, 6, 7, 8, 9}, {4, 3, 2, 1, 0, 5, 6, 7, 8, 9},
     {5, 4, 3, 2, 1, 0, 6, 7, 8, 9}, {6, 5, 4, 3, 2, 1, 0, 7, 8, 9},
@@ -145,24 +169,17 @@ int main(int argc, char** argv)
                                                                  rn_neighs |
                                                                    adp::reversed);
 
-  std::random_device rd{};
-  std::mt19937       gen(rd());
+  random_access_neighbor_test<Reverse_neighborhood>(base_sol, rn_neighs);
+  random_access_neighbor_test<Backward_neighborhood<Reverse_neighborhood>>(
+    base_sol,
+    rn_neighs | adp::reversed);
+  random_access_neighbor_test<Consecutive_single_swap_neighborhood>(base_sol,
+                                                                    cssn_neighs);
 
-  Reverse_neighborhood          ntest{base_sol};
-  std::uniform_int_distribution dist(0, ntest.size() - 1);
-
-  fai::Index random_neigh_idx = dist(gen);
-  auto       rand_pick = ntest.begin();
-  rand_pick += random_neigh_idx;
-  fmt::print("random access test\n");
-  assert_equal(
-    *rand_pick == rn_neighs[random_neigh_idx],
-    fmt::format("neighbor isn't generated correctly at pos {}", random_neigh_idx));
-  fmt::print("  | received ");
-  print_rng_diffs(base_sol, *rand_pick);
-  fmt::print("\n  | expected ");
-  print_rng_diffs(base_sol, rn_neighs[random_neigh_idx]);
-  fmt::print("\n");
+  random_access_neighbor_test<
+    Backward_neighborhood<Consecutive_single_swap_neighborhood>>(base_sol,
+                                                                 cssn_neighs |
+                                                                   adp::reversed);
 
   if (failed_test != 0)
   {
