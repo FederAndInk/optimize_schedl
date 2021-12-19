@@ -76,7 +76,7 @@ inline fai::vector<fai::Index> vnd(fai::vector<Task> const& tasks,
   }
 }
 
-template <typename Select2_fn>
+template <typename Neighborhood, typename Select2_fn>
 fai::vector<fai::Index> hill_climbing(fai::vector<Task> const& tasks,
                                       fai::vector<fai::Index>  base_solution,
                                       Select2_fn&&             select)
@@ -85,8 +85,8 @@ fai::vector<fai::Index> hill_climbing(fai::vector<Task> const& tasks,
   auto start_time = std::chrono::steady_clock::now();
   while (true)
   {
-    fai::Cost base_cost = evaluate(tasks, base_solution);
-    Reverse_consecutive_single_swap_neighborhood n1(std::move(base_solution));
+    fai::Cost    base_cost = evaluate(tasks, base_solution);
+    Neighborhood n1(std::move(base_solution));
 
     std::chrono::duration<double> time_since_start =
       std::chrono::steady_clock::now() - start_time;
