@@ -15,6 +15,7 @@ execute_process(
 )
 
 find_package(Boost REQUIRED COMPONENTS program_options)
+find_package(Threads REQUIRED)
 
 if("${CMAKE_CXX_COMPILER_ID}"
    MATCHES
@@ -73,6 +74,7 @@ target_link_libraries(
   PRIVATE Boost::boost
           Boost::program_options
           fmt::fmt
+          Threads::Threads
 )
 
 add_subdirectory(tests)

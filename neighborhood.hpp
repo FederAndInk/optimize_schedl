@@ -469,3 +469,107 @@ public:
     return n * (n - 1) / 2;
   }
 };
+
+template <typename Neighborhood>
+class Backward_neighborhood
+{
+private:
+  Neighborhood nbh;
+
+public:
+  using Base_neighborhood = Neighborhood;
+
+  explicit Backward_neighborhood(fai::vector<fai::Index> base_solution)
+    : nbh(std::move(base_solution))
+  {
+  }
+
+  auto begin() noexcept
+  {
+    return std::rbegin(nbh);
+  }
+
+  auto end() noexcept
+  {
+    return std::rend(nbh);
+  }
+
+  fai::vector<fai::Index>& get_base_solution() noexcept
+  {
+    return nbh.get_base_solution();
+  }
+
+  fai::vector<fai::Index> const& get_base_solution() const noexcept
+  {
+    return nbh.get_base_solution();
+  }
+
+  fai::Index size() const noexcept
+  {
+    return nbh.size();
+  }
+};
+
+template <typename U>
+struct Is_backward_neighborhood
+{
+private:
+  template <typename T>
+  static constexpr std::false_type test(T);
+
+  template <typename T>
+  static constexpr std::true_type test(Backward_neighborhood<T>);
+
+public:
+  static constexpr bool value = decltype(test(std::declval<U>()))::value;
+};
+
+template <typename U>
+constexpr auto is_backward_neighborhood_v = Is_backward_neighborhood<U>::value;
+
+template <typename U>
+struct base_neighborhood
+{
+private:
+  template <typename T>
+  static constexpr T test(T);
+
+  template <typename T>
+  static constexpr T test(Backward_neighborhood<T>);
+
+public:
+  using type = decltype(test(std::declval<U>()));
+};
+
+template <typename U>
+using base_neighborhood_t = typename base_neighborhood<U>::type;
+
+template <typename Neighborhood>
+std::string get_neighborhood_name()
+{
+  std::string ret;
+  if constexpr (is_backward_neighborhood_v<Neighborhood>)
+  {
+    ret = "Backward ";
+  }
+  using Base_neighborhood = base_neighborhood_t<Neighborhood>;
+  if constexpr (std::is_same_v<Base_neighborhood, Consecutive_single_swap_neighborhood>)
+  {
+    ret += "Consecutive_single_swap_neighborhood";
+  }
+  else if (std::is_same_v<Base_neighborhood,
+                          Reverse_consecutive_single_swap_neighborhood>)
+  {
+    ret += "Reverse_consecutive_single_swap_neighborhood";
+  }
+  else if (std::is_same_v<Base_neighborhood, Reverse_neighborhood>)
+  {
+    ret += "Reverse_neighborhood";
+  }
+  else
+  {
+    ret += "unknown";
+  }
+
+  return ret;
+}

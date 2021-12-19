@@ -81,6 +81,7 @@ fai::vector<fai::Index> hill_climbing(fai::vector<Task> const& tasks,
                                       fai::vector<fai::Index>  base_solution,
                                       Select2_fn&&             select)
 {
+  fmt::print("hill_climbing with {}\n", get_neighborhood_name<Neighborhood>());
   long nb_loop = 0;
   auto start_time = std::chrono::steady_clock::now();
   while (true)

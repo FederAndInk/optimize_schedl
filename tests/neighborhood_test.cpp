@@ -39,27 +39,6 @@ bool assert_equal_fn(bool             expr,
 
 #define assert_equal(expr, msg) assert_equal_fn((expr), (msg), #expr, __LINE__, __FILE__)
 
-template <typename Neighborhood>
-std::string_view get_neighborhood_name()
-{
-  if constexpr (std::is_same_v<Neighborhood, Consecutive_single_swap_neighborhood>)
-  {
-    return "Consecutive_single_swap_neighborhood";
-  }
-  else if (std::is_same_v<Neighborhood, Reverse_consecutive_single_swap_neighborhood>)
-  {
-    return "Reverse_consecutive_single_swap_neighborhood";
-  }
-  else if (std::is_same_v<Neighborhood, Reverse_neighborhood>)
-  {
-    return "Reverse_neighborhood";
-  }
-  else
-  {
-    return "unknown";
-  }
-}
-
 template <typename T>
 std::string highlight(T&& t)
 {
@@ -90,27 +69,11 @@ void print_rng_diffs(R1&& r1, R2&& r2)
   fmt::print("}}");
 }
 
-enum class Direction
-{
-  forward,
-  reverse
-};
-
-template <typename Neighborhood, Direction dir = Direction::forward, typename Rng>
+template <typename Neighborhood, typename Rng>
 void test_neighborhood(fai::vector<fai::Index> const& base_sol, Rng const& rng_expected)
 {
-  auto nbh = [&base_sol]
-  {
-    if constexpr (dir == Direction::forward)
-    {
-      return Neighborhood{base_sol};
-    }
-    else
-    {
-      return fai::Reverse_range(Neighborhood{base_sol});
-    }
-  }();
-  fmt::print("{}:\n", get_neighborhood_name<Neighborhood>());
+  Neighborhood nbh{base_sol};
+  fmt::print("{}:\n", get_neighborhood_name<decltype(nbh)>());
 
   long nb = 0;
   auto expect_it = std::begin(rng_expected);
@@ -178,8 +141,9 @@ int main(int argc, char** argv)
     {0, 1, 2, 3, 4, 5, 6, 8, 7, 9}, {0, 1, 2, 3, 4, 5, 6, 9, 8, 7},
     {0, 1, 2, 3, 4, 5, 6, 7, 9, 8}};
   test_neighborhood<Reverse_neighborhood>(base_sol, rn_neighs);
-  test_neighborhood<Reverse_neighborhood, Direction::reverse>(base_sol,
-                                                              rn_neighs | adp::reversed);
+  test_neighborhood<Backward_neighborhood<Reverse_neighborhood>>(base_sol,
+                                                                 rn_neighs |
+                                                                   adp::reversed);
 
   std::random_device rd{};
   std::mt19937       gen(rd());
