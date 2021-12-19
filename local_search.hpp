@@ -103,6 +103,9 @@ fai::vector<fai::Index> hill_climbing(fai::vector<Task> const& tasks,
     }
     else if (fai::stop_request())
     {
+      fmt::print("\nStopped at {} with:\n  {}\n",
+                 evaluate(tasks, selected_neigh),
+                 selected_neigh);
       return selected_neigh;
     }
     else
