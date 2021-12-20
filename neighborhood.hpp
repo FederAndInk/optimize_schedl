@@ -19,7 +19,7 @@ protected:
   public:
     static constexpr struct Reverse_tag
     {
-    } reverse_tag;
+    } reverse_tag{};
     virtual ~Polymorphic_iterator() = default;
 
     virtual void advance()
