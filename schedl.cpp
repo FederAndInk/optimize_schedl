@@ -94,7 +94,7 @@ auto launch(fai::vector<Task> const& tasks,
                         tasks,
                         std::move(gen_sol),
                         base_name,
-                        fmt::format("_hc_{}_{}",
+                        fmt::format("hc_{}_{}",
                                     select_fn_name(select_fn),
                                     get_neighborhood_short_name<Neighborhood>()),
                         fmt::format("Hill climbing {} {}",
@@ -235,7 +235,7 @@ int main(int argc, char** argv)
   auto base_out_fname = fs::path(problem_file_name).stem().string();
   if (vm.count("ils"))
   {
-    using Local_search_nbh = Sliding_reverse_neighborhood<15>;
+    using Local_search_nbh = Sliding_reverse_neighborhood<10>;
     using Perturbation_nbh = Sliding_reverse_neighborhood<20>;
     auto sol_ils = ils(
       tasks,
@@ -246,7 +246,7 @@ int main(int argc, char** argv)
                                                select2best);
       },
       [](Scheduling& solution, std::vector<Scheduling>& history)
-      { return random_distant_neighbor<Perturbation_nbh>(solution, 30, history); },
+      { return random_distant_neighbor<Perturbation_nbh>(solution, 15, history); },
       accept_best,
       stop_n_worse<20>);
 
@@ -254,7 +254,7 @@ int main(int argc, char** argv)
       tasks,
       std::move(sol_ils),
       base_out_fname,
-      fmt::format("_ils_best_hc_best_{}_pert_",
+      fmt::format("_ils_best_hc_best_{}_pert_{}",
                   get_neighborhood_short_name<Local_search_nbh>(),
                   get_neighborhood_short_name<Perturbation_nbh>()),
       fmt::format(
@@ -275,18 +275,30 @@ int main(int argc, char** argv)
       launch<Backward_neighborhood<Consecutive_single_swap_neighborhood>>(tasks,
                                                                           best_sol,
                                                                           base_out_fname,
-                                                                          select2best));
+                                                                          select2first));
     compute_tasks.push_back(launch<Consecutive_single_swap_neighborhood>(tasks,
                                                                          best_sol,
                                                                          base_out_fname,
-                                                                         select2first));
+                                                                         select2best));
     compute_tasks.push_back(
       launch<Backward_neighborhood<Reverse_neighborhood>>(tasks,
                                                           best_sol,
                                                           base_out_fname,
-                                                          select2best));
+                                                          select2best_nfirst<5>{}));
+    if (tasks.size() < 200)
+    {
+      compute_tasks.push_back(
+        launch<Reverse_neighborhood>(tasks, best_sol, base_out_fname, select2best));
+    }
     compute_tasks.push_back(
-      launch<Reverse_neighborhood>(tasks, best_sol, base_out_fname, select2first));
+      launch<Backward_neighborhood<Sliding_reverse_neighborhood<10>>>(tasks,
+                                                                      best_sol,
+                                                                      base_out_fname,
+                                                                      select2first));
+    compute_tasks.push_back(launch<Sliding_reverse_neighborhood<10>>(tasks,
+                                                                     best_sol,
+                                                                     base_out_fname,
+                                                                     select2first));
   }
   // sol = hill_climbing(tasks, best_sol, select2worst);
   // fmt::print("Total cost hill_climbing select2worst: {:L}\n", evaluate(tasks, sol));

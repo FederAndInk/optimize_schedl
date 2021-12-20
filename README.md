@@ -152,16 +152,16 @@ We have implemented 3 neighborhoods and their backward conterparts can be obtain
 We have implemented 3 pivot function.
 
 - `select2best` :
-
   Return the best solution out of the solutions given, which are to be better the the previous solution in the hill climbing
 
 - `select2worst` :
-
   Return the worst solution out of the solutions given, which are to be better the the previous solution in the hill climbing
 
 - `select2first` :
-
   Return the first solution found to be better than the previous one.
+
+- `select2best_nfirst` :
+  Return the best from the n first solutions found.
 
 The best result we achieved with hill climbing is with the Reverse_neighborhood and the select2best pivot function but we only tested that on some of the problems.
 

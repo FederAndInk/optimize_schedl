@@ -823,7 +823,7 @@ std::string get_neighborhood_short_name()
   }
   else if (is_sliding_reverse_neighborhood_v<Base_neighborhood>)
   {
-    ret += fmt::format("srn<{}>",
+    ret += fmt::format("srn{}",
                        sliding_reverse_neighborhood_max_range_size_v<Base_neighborhood>);
   }
   else

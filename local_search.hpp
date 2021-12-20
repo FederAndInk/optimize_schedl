@@ -13,9 +13,14 @@ struct Select2_ret
   static constexpr bool BREAK = true;
   static constexpr bool CONTINUE = false;
 
-  Scheduling const& selected;
-  bool              brk{false};
+  // Scheduling const& selected;
+  bool brk{false};
 };
+
+using Select2_fn_t = Select2_ret (*)(fai::vector<Task> const& tasks,
+                                     Scheduling&              lhs,
+                                     Scheduling const&        rhs,
+                                     fai::Index               imp_neigh_no);
 
 template <typename Neigh_op, typename Select2_fn>
 Scheduling next_neighbor(fai::vector<Task> const& tasks,
@@ -26,6 +31,7 @@ Scheduling next_neighbor(fai::vector<Task> const& tasks,
 
   Scheduling selected_neigh;
   long       nb_neigh = 0;
+  fai::Index nb_imp_neigh = 0;
   for (auto const& neigh_sol : neigh_op)
   {
     if (fai::Cost curr_cost = evaluate(tasks, neigh_sol); //
@@ -37,12 +43,12 @@ Scheduling next_neighbor(fai::vector<Task> const& tasks,
       }
       else
       {
-        Select2_ret select_ret = select(tasks, selected_neigh, neigh_sol);
-        selected_neigh = select_ret.selected;
+        Select2_ret select_ret = select(tasks, selected_neigh, neigh_sol, nb_imp_neigh);
         if (select_ret.brk)
         {
           break;
         }
+        ++nb_imp_neigh;
       }
     }
     ++nb_neigh;
@@ -125,26 +131,73 @@ Scheduling hill_climbing(fai::vector<Task> const& tasks,
   }
 }
 
-inline Select2_ret select2best(fai::vector<Task> const& tasks,
-                               Scheduling const&        lhs,
-                               Scheduling const&        rhs)
+inline Select2_ret select2best(fai::vector<Task> const&    tasks,
+                               Scheduling&                 lhs,
+                               Scheduling const&           rhs,
+                               [[maybe_unused]] fai::Index imp_neigh_no)
 {
-  return {(evaluate(tasks, lhs) <= evaluate(tasks, rhs)) ? lhs : rhs};
+  if (evaluate(tasks, lhs) > evaluate(tasks, rhs))
+  {
+    lhs = rhs;
+  }
+  return {};
 }
 
-inline Select2_ret select2worst(fai::vector<Task> const& tasks,
-                                Scheduling const&        lhs,
-                                Scheduling const&        rhs)
+inline Select2_ret select2worst(fai::vector<Task> const&    tasks,
+                                Scheduling&                 lhs,
+                                Scheduling const&           rhs,
+                                [[maybe_unused]] fai::Index imp_neigh_no)
 {
-  return {(evaluate(tasks, lhs) < evaluate(tasks, rhs)) ? rhs : lhs};
+  if (evaluate(tasks, lhs) < evaluate(tasks, rhs))
+  {
+    lhs = rhs;
+  }
+  return {};
 }
 
-inline Select2_ret select2first(fai::vector<Task> const& tasks,
-                                Scheduling const&        lhs,
-                                Scheduling const&        rhs)
+inline Select2_ret select2first(fai::vector<Task> const&    tasks,
+                                Scheduling&                 lhs,
+                                Scheduling const&           rhs,
+                                [[maybe_unused]] fai::Index imp_neigh_no)
 {
-  return {lhs, Select2_ret::BREAK};
+  return {Select2_ret::BREAK};
 }
+
+template <fai::Index n>
+struct select2best_nfirst
+{
+  constexpr fai::Index get_n() const noexcept
+  {
+    return n;
+  }
+
+  inline Select2_ret operator()(fai::vector<Task> const&    tasks,
+                                Scheduling&                 lhs,
+                                Scheduling const&           rhs,
+                                [[maybe_unused]] fai::Index imp_neigh_no) const
+  {
+    if (evaluate(tasks, lhs) > evaluate(tasks, rhs))
+    {
+      lhs = rhs;
+    }
+
+    return {imp_neigh_no < n ? Select2_ret::CONTINUE : Select2_ret::BREAK};
+  }
+};
+
+template <typename U>
+struct is_select2best_nfirst
+{
+private:
+  template <typename T>
+  static constexpr std::false_type test(T);
+
+  template <fai::Index n>
+  static constexpr std::true_type test(select2best_nfirst<n>);
+
+public:
+  static constexpr bool value = decltype(test(std::declval<U>()))::value;
+};
 
 template <typename Select_fn>
 std::string select_fn_name(Select_fn&& fn)
@@ -165,4 +218,10 @@ std::string select_fn_name(Select_fn&& fn)
   {
     return "sunknown";
   }
+}
+
+template <fai::Index n>
+std::string select_fn_name(select2best_nfirst<n>& fn)
+{
+  return fmt::format("sbestIn{}", n);
 }
