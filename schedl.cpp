@@ -254,7 +254,7 @@ int main(int argc, char** argv)
       tasks,
       std::move(sol_ils),
       base_out_fname,
-      fmt::format("_ils_best_hc_best_{}_pert_{}",
+      fmt::format("ils_best_hc_best_{}_pert_{}",
                   get_neighborhood_short_name<Local_search_nbh>(),
                   get_neighborhood_short_name<Perturbation_nbh>()),
       fmt::format(
