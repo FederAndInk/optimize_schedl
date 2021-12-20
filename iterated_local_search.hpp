@@ -1,6 +1,7 @@
 #include "Task.hpp"
 #include "local_search.hpp"
 #include "neighborhood.hpp"
+#include "utils.hpp"
 
 #include <iterator>
 #include <random>
@@ -99,7 +100,7 @@ Scheduling ils(fai::vector<Task> const& tasks,
   {
     Scheduling second_opt_sol = local_search_fn(tasks, disturb_fn(accepted_sol, history));
     accept_fn(tasks, accepted_sol, std::move(second_opt_sol), history);
-  } while (!stop_fn(tasks, history));
+  } while (!fai::stop_request() && !stop_fn(tasks, history));
   return *std::min_element(std::begin(history),
                            std::end(history),
                            [&tasks](Scheduling const& lhs, Scheduling const& rhs)

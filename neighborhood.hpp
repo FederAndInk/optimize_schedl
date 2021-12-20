@@ -803,3 +803,33 @@ std::string get_neighborhood_name()
 
   return ret;
 }
+
+template <typename Neighborhood>
+std::string get_neighborhood_short_name()
+{
+  std::string ret;
+  if constexpr (is_backward_neighborhood_v<Neighborhood>)
+  {
+    ret = "b";
+  }
+  using Base_neighborhood = base_neighborhood_t<Neighborhood>;
+  if constexpr (std::is_same_v<Base_neighborhood, Consecutive_single_swap_neighborhood>)
+  {
+    ret += "cssn";
+  }
+  else if (std::is_same_v<Base_neighborhood, Reverse_neighborhood>)
+  {
+    ret += "rn";
+  }
+  else if (is_sliding_reverse_neighborhood_v<Base_neighborhood>)
+  {
+    ret += fmt::format("srn<{}>",
+                       sliding_reverse_neighborhood_max_range_size_v<Base_neighborhood>);
+  }
+  else
+  {
+    ret += "unknown";
+  }
+
+  return ret;
+}

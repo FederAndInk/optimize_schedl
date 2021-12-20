@@ -91,7 +91,8 @@ Scheduling hill_climbing(fai::vector<Task> const& tasks,
 
     std::chrono::duration<double> time_since_start =
       std::chrono::steady_clock::now() - start_time;
-    fmt::print("hc: Solution is at {:L} {:.2f} loop/s",
+    fmt::print("hc_{}: Solution is at {:L} {:.2f} loop/s",
+               get_neighborhood_short_name<Neighborhood>(),
                base_cost,
                nb_loop / time_since_start.count());
     Scheduling selected_neigh = next_neighbor(tasks, n1, select);
@@ -143,4 +144,25 @@ inline Select2_ret select2first(fai::vector<Task> const& tasks,
                                 Scheduling const&        rhs)
 {
   return {lhs, Select2_ret::BREAK};
+}
+
+template <typename Select_fn>
+std::string select_fn_name(Select_fn&& fn)
+{
+  if (fn == select2best)
+  {
+    return "sbest";
+  }
+  else if (fn == select2first)
+  {
+    return "sfirst";
+  }
+  else if (fn == select2worst)
+  {
+    return "sworst";
+  }
+  else
+  {
+    return "sunknown";
+  }
 }
