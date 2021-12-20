@@ -114,17 +114,22 @@ extern "C" void  interrupt_handler(int)
   }
 }
 
+void help(std::string_view file_name)
+{
+  fmt::print("usage: {} tasks_file [scheduling_file]\n", file_name);
+  fmt::print("{0} <problem_file> --sol <solution_file>\n"
+             "{0} <problem_file> --heuristics\n"
+             "{0} <problem_file> --random\n"
+             "{0} <problem_file> --hc [--sol <solution_file>|--random]\n"
+             "{0} <problem_file> --ils [--sol <solution_file>|--random]\n",
+             file_name);
+}
+
 int main(int argc, char** argv)
 {
   if (argc < 2)
   {
-    fmt::print("usage: {} tasks_file [scheduling_file]\n", argv[0]);
-    fmt::print("{0} <problem_file> --sol <solution_file>\n"
-               "{0} <problem_file> --heuristics\n"
-               "{0} <problem_file> --random\n"
-               "{0} <problem_file> --hc [--sol <solution_file>|--random]\n"
-               "{0} <problem_file> --ils [--sol <solution_file>|--random]\n",
-               argv[0]);
+    help(argv[0]);
     return 1;
   }
 
@@ -151,6 +156,12 @@ int main(int argc, char** argv)
   po::store(po::command_line_parser(argc, argv).options(desc).positional(pos_args).run(),
             vm);
   po::notify(vm);
+
+  if (vm.count("help"))
+  {
+    help(argv[0]);
+    return 0;
+  }
 
   try
   {
